@@ -348,7 +348,7 @@ const Sales = () => {
 									margin='dense'
 									value={item.quantity}
 									onChange={(e) =>
-										handleQuantityChange(index, parseInt(e.target.value))
+										handleQuantityChange(index, parseFloat(e.target.value))
 									}
 								/>
 								<Typography variant='body1' style={{ marginTop: 5 }}>

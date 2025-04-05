@@ -91,7 +91,7 @@ router.post(
 					await transaction
 						.request()
 						.input("product_name", sql.NVarChar(255), product_name)
-						.input("quantity", sql.Int, quantity)
+						.input("quantity", sql.Decimal(10, 2), quantity)
 						.input("total_price", sql.Decimal(10, 2), itemTotalPrice)
 						.input("company_id", sql.Int, company_id)
 						.query(

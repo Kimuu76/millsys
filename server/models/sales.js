@@ -11,7 +11,7 @@ const createSalesTable = async () => {
 			CREATE TABLE Sales (
 				id INT IDENTITY(1,1) PRIMARY KEY,
 				product_name NVARCHAR(255) NOT NULL,
-				quantity INT NOT NULL,
+				quantity DECIMAL(10,2) NOT NULL,
 				total_price DECIMAL(10,2) NOT NULL,
 				company_id INT NOT NULL,  -- 🔥 Added company_id
 				sale_date DATETIME DEFAULT GETDATE(),
