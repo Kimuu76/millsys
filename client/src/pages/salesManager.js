@@ -149,8 +149,10 @@ const Sales = () => {
 
 	const handleCreateSale = async () => {
 		try {
-			if (selectedProducts.length === 0)
-				return alert("Please add at least one product.");
+			if (selectedProducts.length === 0) {
+				alert("Please add at least one product.");
+				return;
+			}
 
 			const token = localStorage.getItem("token"); // ✅ Retrieve token
 
@@ -172,18 +174,39 @@ const Sales = () => {
 			});
 
 			const data = await response.json();
+
 			if (response.ok) {
 				alert("✅ Sale processed successfully!");
-				setReceipt({
-					text: data.receipt, // Store the receipt string
-					total_price: data.computedTotal,
+
+				// ✅ Extract company details from API response
+				const { name, address, phone } = data.company;
+
+				// ✅ Generate receipt string dynamically
+				const receiptId = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
+				let receiptText = `${name}\nAddress: ${address}\nContact: ${phone}\n\nReceipt ID: ${receiptId}\nDate: ${new Date().toLocaleString()}\n--------------------------------\n`;
+
+				selectedProducts.forEach((item) => {
+					receiptText += `${item.product_name} x ${item.quantity}L = KES ${(
+						item.selling_price * item.quantity
+					).toFixed(2)}\n`;
 				});
+
+				receiptText += `--------------------------------\nTOTAL: KES ${totalPrice.toFixed(
+					2
+				)}\n================================\nThanks and Always Welcome! 😊`;
+
+				// ✅ Update state with the generated receipt
+				setReceipt({
+					text: receiptText,
+					total_price: totalPrice,
+				});
+
 				fetchSales();
 				setOpen(false);
 				setSelectedProducts([]);
 				setTotalPrice(0);
 			} else {
-				alert(`❌ Error: ${data.error}`);
+				alert(`⚠️ Stock unavailable!! Please check Stock Quantity.`);
 			}
 		} catch (error) {
 			console.error("❌ Error processing sale:", error);
@@ -258,7 +281,6 @@ const Sales = () => {
 								<TableCell>Quantity</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
-								<TableCell>Actions</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -276,14 +298,6 @@ const Sales = () => {
 										<TableCell>KES {sale.total_price}</TableCell>
 										<TableCell>
 											{new Date(sale.sale_date).toLocaleString()}
-										</TableCell>
-										<TableCell>
-											<Button
-												color='secondary'
-												onClick={() => handleDelete(sale.id)}
-											>
-												Delete
-											</Button>
 										</TableCell>
 									</TableRow>
 								))}

@@ -186,7 +186,7 @@ const Sales = () => {
 				let receiptText = `${name}\nAddress: ${address}\nContact: ${phone}\n\nReceipt ID: ${receiptId}\nDate: ${new Date().toLocaleString()}\n--------------------------------\n`;
 
 				selectedProducts.forEach((item) => {
-					receiptText += `${item.product_name} x ${item.quantity} = KES ${(
+					receiptText += `${item.product_name} x ${item.quantity}L = KES ${(
 						item.selling_price * item.quantity
 					).toFixed(2)}\n`;
 				});
