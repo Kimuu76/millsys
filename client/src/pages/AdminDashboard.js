@@ -165,6 +165,7 @@ const AdminDashboard = () => {
 	const totalExpenses = stats?.total_expenses || 0;
 	const totalSuppliers = stats?.total_suppliers || 0;
 	const totalProducts = stats?.total_products || 0;
+	const totalStock = stats?.total_stock || 0;
 	const profit = totalSales - (totalPurchases + totalExpenses);
 	const isProfit = profit >= 0;
 
@@ -214,6 +215,14 @@ const AdminDashboard = () => {
 					<CardContent>
 						<Typography variant='h5'>{totalSuppliers}</Typography>
 						<Typography variant='body2'>Total Farmers/Suppliers</Typography>
+					</CardContent>
+				</StyledCard>
+				<StyledCard>
+					<CardContent>
+						<Typography variant='h5'>
+							{totalStock.toLocaleString()} Litres
+						</Typography>
+						<Typography variant='body2'>Total Stock</Typography>
 					</CardContent>
 				</StyledCard>
 				{/* Profit/Loss Card */}

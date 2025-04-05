@@ -132,6 +132,7 @@ const ManagerDashboard = () => {
 	const totalSales = stats?.total_sales || 0;
 	const totalPurchases = stats?.total_purchases || 0;
 	const totalExpenses = stats?.total_expenses || 0;
+	const totalStock = stats?.total_stock || 0;
 	const profit = totalSales - (totalPurchases + totalExpenses);
 	const isProfit = profit >= 0;
 
@@ -163,6 +164,14 @@ const ManagerDashboard = () => {
 							KES {totalExpenses.toLocaleString()}
 						</Typography>
 						<Typography variant='body2'>Total Expenses</Typography>
+					</CardContent>
+				</StyledCard>
+				<StyledCard>
+					<CardContent>
+						<Typography variant='h5'>
+							{totalStock.toLocaleString()} Litres
+						</Typography>
+						<Typography variant='body2'>Total Stock</Typography>
 					</CardContent>
 				</StyledCard>
 				{/* Profit/Loss Card */}

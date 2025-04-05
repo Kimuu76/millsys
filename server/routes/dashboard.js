@@ -49,6 +49,15 @@ router.get("/", authenticateUser, async (req, res) => {
 			);
 		const totalSuppliers = suppliersResult.recordset[0]?.total_suppliers || 0;
 
+		// Fetch total stock count for the company
+		const stockResult = await pool
+			.request()
+			.input("company_id", sql.Int, companyId)
+			.query(
+				`SELECT SUM(quantity) AS total_stock FROM Stock WHERE company_id = @company_id`
+			);
+		const totalStock = stockResult.recordset[0]?.total_stock || 0;
+
 		// Fetch total staff count for the company
 		const staffResult = await pool
 			.request()
@@ -119,6 +128,7 @@ router.get("/", authenticateUser, async (req, res) => {
 			total_suppliers: totalSuppliers,
 			profit_loss: profitLoss,
 			total_staff: totalStaff,
+			total_stock: totalStock,
 			total_products: totalProducts,
 			total_expenses: totalExpenses,
 			salesData: chartData,
