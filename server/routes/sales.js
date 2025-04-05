@@ -13,7 +13,7 @@ const { sql, poolPromise } = require("../models/db");
 router.post(
 	"/sale",
 	authenticateUser,
-	authorizeRole(["Cashier", "Admin"]),
+	authorizeRole(["Cashier", "Admin", "Manager"]),
 	async (req, res) => {
 		try {
 			const { products } = req.body;
