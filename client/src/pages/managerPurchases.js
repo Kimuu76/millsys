@@ -348,12 +348,7 @@ const Purchases = () => {
 						options={suppliers}
 						getOptionLabel={(option) => option.name}
 						renderInput={(params) => (
-							<TextField
-								{...params}
-								label='Supplier'
-								fullWidth
-								margin='dense'
-							/>
+							<TextField {...params} label='Farmer' fullWidth margin='dense' />
 						)}
 						onChange={(event, newValue) => {
 							setNewPurchase({

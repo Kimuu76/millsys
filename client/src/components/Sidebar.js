@@ -260,7 +260,7 @@ const Sidebar = ({ role }) => {
 							onClick={() => navigate("/salesmanager")}
 						>
 							<ShoppingCartIcon fontSize='small' />
-							<span>View Sales</span>
+							<span>Make Sales</span>
 						</SidebarItem>
 						<SidebarItem
 							collapsed={collapsed}
@@ -281,7 +281,7 @@ const Sidebar = ({ role }) => {
 							onClick={() => navigate("/managerpurchases")}
 						>
 							<ReceiptIcon fontSize='small' />
-							<span>View Purchases</span>
+							<span>Make Purchases</span>
 						</SidebarItem>
 						<LogoutButton collapsed={collapsed} onClick={() => navigate("/")}>
 							<ExitToAppIcon fontSize='small' />

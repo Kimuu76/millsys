@@ -10,7 +10,7 @@ const createStockTable = async () => {
             CREATE TABLE Stock (
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 product_name NVARCHAR(255) NOT NULL,
-                quantity INT DEFAULT 0 CHECK (quantity >= 0) NOT NULL,
+                quantity DECIMAL(10,2) DEFAULT 0 CHECK (quantity >= 0) NOT NULL,
                 purchase_price DECIMAL(10,2) NOT NULL,
                 selling_price DECIMAL(10,2) NOT NULL,
                 company_id INT NOT NULL,

@@ -164,7 +164,11 @@ const Stock = () => {
 								<TableCell>{item.product_name}</TableCell>
 								<TableCell>KES {item.purchase_price}</TableCell>
 								<TableCell>KES {item.selling_price}</TableCell>
-								<TableCell>{item.quantity ?? "N/A"}</TableCell>
+								<TableCell>
+									{item.quantity != null
+										? parseFloat(item.quantity).toString()
+										: "N/A"}
+								</TableCell>
 							</TableRow>
 						))}
 					</TableBody>
