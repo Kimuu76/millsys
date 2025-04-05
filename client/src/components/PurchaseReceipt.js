@@ -3,7 +3,7 @@ import React, { useRef } from "react";
 import { Button, Typography, Box, Paper, Divider } from "@mui/material";
 import { jsPDF } from "jspdf";
 
-const PurchaseReceipt = ({ purchase, onClose }) => {
+const PurchaseReceipt = ({ purchase, user, onClose }) => {
 	// ✅ Generate receipt string dynamically
 	const receiptId = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -34,6 +34,7 @@ Quantity: ${purchase.quantity} L
 --------------------------------
 Date: ${new Date(purchase.createdAt).toLocaleString()}
 Status: ${purchase.status}
+Served by: ${user?.username || "N/A"}
 --------------------------------
 Thanks and Welcome!
 

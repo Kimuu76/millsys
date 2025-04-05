@@ -47,6 +47,13 @@ const Purchases = () => {
 	const [openReturnDialog, setOpenReturnDialog] = useState(false);
 	const [returnData, setReturnData] = useState({ id: "", return_quantity: "" });
 
+	const [loggedInUser, setLoggedInUser] = useState(null);
+
+	useEffect(() => {
+		const userData = JSON.parse(localStorage.getItem("user")); // check your key name
+		if (userData) setLoggedInUser(userData);
+	}, []);
+
 	useEffect(() => {
 		fetchPurchases();
 		fetchProducts();
@@ -553,6 +560,7 @@ const Purchases = () => {
 				{receiptData && (
 					<PurchaseReceipt
 						purchase={receiptData}
+						user={loggedInUser}
 						onClose={() => setOpenReceipt(false)}
 					/>
 				)}
