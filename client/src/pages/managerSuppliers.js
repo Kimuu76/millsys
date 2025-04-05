@@ -27,6 +27,7 @@ const Container = styled.div`
 const Suppliers = () => {
 	const [suppliers, setSuppliers] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
 	const [newSupplier, setNewSupplier] = useState({
 		name: "",
@@ -119,46 +120,64 @@ const Suppliers = () => {
 
 	return (
 		<Container>
-			<h2>Suppliers/Farmers Management</h2>
+			<h2>Farmers/Suppliers Management</h2>
+			<TextField
+				label='Search Suppliers'
+				variant='outlined'
+				fullWidth
+				margin='normal'
+				onChange={(e) => setSearch(e.target.value)}
+			/>
 			<Button variant='contained' color='primary' onClick={() => setOpen(true)}>
-				Add Supplier/Farmer
+				Add Farmer/Supplier
 			</Button>
 
 			{loading ? (
 				<CircularProgress style={{ marginTop: 20 }} />
 			) : suppliers.length === 0 ? (
-				<p style={{ marginTop: 20, textAlign: "center" }}>
-					No suppliers/Farmers found.
-				</p>
+				<p style={{ marginTop: 20, textAlign: "center" }}>No Farmers found.</p>
 			) : (
-				<TableContainer component={Paper} style={{ marginTop: 20 }}>
-					<Table>
+				<TableContainer
+					component={Paper}
+					style={{ maxHeight: "400px", overflowY: "auto" }}
+				>
+					<Table stickyHeader>
 						<TableHead>
 							<TableRow>
 								<TableCell>ID</TableCell>
 								<TableCell>Name</TableCell>
 								<TableCell>Contact</TableCell>
-								<TableCell>Address</TableCell>
+								<TableCell>Location</TableCell>
 								{/*<TableCell>Actions</TableCell>*/}
 							</TableRow>
 						</TableHead>
 						<TableBody>
-							{suppliers.map((supplier) => (
-								<TableRow key={supplier.id}>
-									<TableCell>{supplier.id}</TableCell>
-									<TableCell>{supplier.name}</TableCell>
-									<TableCell>{supplier.contact}</TableCell>
-									<TableCell>{supplier.address}</TableCell>
-									{/*<TableCell>
-										<Button
-											color='secondary'
-											onClick={() => handleDelete(supplier.id)}
-										>
-											Delete
-										</Button>
-									</TableCell>*/}
-								</TableRow>
-							))}
+							{suppliers
+								.filter(
+									(supplier) =>
+										supplier.name
+											?.toLowerCase()
+											.includes(search.toLowerCase()) ||
+										supplier.address
+											?.toLowerCase()
+											.includes(search.toLowerCase())
+								)
+								.map((supplier) => (
+									<TableRow key={supplier.id}>
+										<TableCell>{supplier.id}</TableCell>
+										<TableCell>{supplier.name}</TableCell>
+										<TableCell>{supplier.contact}</TableCell>
+										<TableCell>{supplier.address}</TableCell>
+										{/*<TableCell>
+											<Button
+												color='secondary'
+												onClick={() => handleDelete(supplier.id)}
+											>
+												Delete
+											</Button>
+										</TableCell>*/}
+									</TableRow>
+								))}
 						</TableBody>
 					</Table>
 				</TableContainer>
@@ -166,7 +185,7 @@ const Suppliers = () => {
 
 			{/* Add Supplier Dialog */}
 			<Dialog open={open} onClose={() => setOpen(false)}>
-				<DialogTitle>Add New Supplier</DialogTitle>
+				<DialogTitle>Add New Farmer/Supplier</DialogTitle>
 				<DialogContent>
 					<TextField
 						label='Name'
@@ -187,7 +206,7 @@ const Suppliers = () => {
 						}
 					/>
 					<TextField
-						label='Address'
+						label='Location'
 						fullWidth
 						margin='dense'
 						value={newSupplier.address}
