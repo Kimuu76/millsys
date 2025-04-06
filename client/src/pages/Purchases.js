@@ -19,6 +19,7 @@ import {
 	CircularProgress,
 } from "@mui/material";
 import styled from "styled-components";
+import { Snackbar, Alert } from "@mui/material";
 import { Autocomplete } from "@mui/material";
 import API_BASE_URL from "../config";
 import PurchaseReceipt from "../components/PurchaseReceipt";
@@ -35,6 +36,8 @@ const Purchases = () => {
 	const [open, setOpen] = useState(false);
 	const [receiptData, setReceiptData] = useState(null);
 	const [openReceipt, setOpenReceipt] = useState(false);
+	const [snackbarMessage, setSnackbarMessage] = useState("");
+	const [openSnackbar, setOpenSnackbar] = useState(false);
 
 	const [loading, setLoading] = useState(true);
 	const [newPurchase, setNewPurchase] = useState({
@@ -215,14 +218,18 @@ const Purchases = () => {
 				return;
 			}
 
-			await fetch(`${API_BASE_URL}/api/purchases`, {
+			const response = await fetch(`${API_BASE_URL}/api/purchases`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`, // ✅ Secure API call
+					Authorization: `Bearer ${token}`,
 				},
 				body: JSON.stringify(newPurchase),
 			});
+
+			// ✅ Show success snackbar
+			setSnackbarMessage("✅ Purchase added successfully!");
+			setOpenSnackbar(true);
 
 			fetchPurchases();
 			setOpen(false);
@@ -233,14 +240,10 @@ const Purchases = () => {
 				purchase_price: 0,
 				total: 0,
 			});
-
-			const data = await fetch.json();
-
-			if (!fetch.ok) {
-				const { name, address, phone } = data.company;
-			}
 		} catch (error) {
-			console.error("❌ Error adding purchase:", error);
+			console.error("❌ Error adding purchase:", error.message);
+			setSnackbarMessage("❌ Failed to add purchase.");
+			setOpenSnackbar(true);
 		}
 	};
 
@@ -565,6 +568,20 @@ const Purchases = () => {
 					/>
 				)}
 			</Dialog>
+			<Snackbar
+				open={openSnackbar}
+				autoHideDuration={4000}
+				onClose={() => setOpenSnackbar(false)}
+				anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+			>
+				<Alert
+					onClose={() => setOpenSnackbar(false)}
+					severity='success'
+					sx={{ width: "100%" }}
+				>
+					{snackbarMessage}
+				</Alert>
+			</Snackbar>
 		</Container>
 	);
 };

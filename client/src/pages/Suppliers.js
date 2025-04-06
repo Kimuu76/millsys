@@ -17,6 +17,8 @@ import {
 	DialogTitle,
 	CircularProgress,
 } from "@mui/material";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
 import styled from "styled-components";
 import API_BASE_URL from "../config";
 
@@ -29,6 +31,8 @@ const Suppliers = () => {
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
+	const [openSnackbar, setOpenSnackbar] = useState(false);
+	const [snackbarMessage, setSnackbarMessage] = useState("");
 	const [newSupplier, setNewSupplier] = useState({
 		name: "",
 		contact: "",
@@ -38,6 +42,10 @@ const Suppliers = () => {
 	useEffect(() => {
 		fetchSuppliers();
 	}, []);
+
+	const Alert = React.forwardRef(function Alert(props, ref) {
+		return <MuiAlert elevation={6} ref={ref} variant='filled' {...props} />;
+	});
 
 	const fetchSuppliers = async () => {
 		try {
@@ -67,6 +75,21 @@ const Suppliers = () => {
 	};
 
 	const handleAddSupplier = async () => {
+		// Duplicate check by name and contact
+		const isDuplicate = suppliers.some(
+			(supplier) =>
+				supplier.name.trim().toLowerCase() ===
+					newSupplier.name.trim().toLowerCase() &&
+				supplier.contact.trim() === newSupplier.contact.trim()
+		);
+
+		if (isDuplicate) {
+			setSnackbarMessage(
+				"⚠️ Farmer with the same name and contact already exists."
+			);
+			setOpenSnackbar(true);
+			return; // 🚫 Stop if duplicate
+		}
 		try {
 			const token = localStorage.getItem("token");
 
@@ -87,8 +110,16 @@ const Suppliers = () => {
 			fetchSuppliers();
 			setOpen(false);
 			setNewSupplier({ name: "", contact: "", address: "" });
+
+			// Show success snackbar
+			setSnackbarMessage("✅ Farmer added successfully!");
+			setOpenSnackbar(true);
 		} catch (error) {
 			console.error("❌ Error adding supplier:", error);
+
+			// Optional: show error message
+			setSnackbarMessage("❌ Failed to add supplier.");
+			setOpenSnackbar(true);
 		}
 	};
 
@@ -222,6 +253,40 @@ const Suppliers = () => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<Snackbar
+				open={openSnackbar}
+				autoHideDuration={3000}
+				onClose={() => setOpenSnackbar(false)}
+				anchorOrigin={{ vertical: "top", horizontal: "center" }}
+			>
+				<Alert
+					onClose={() => setOpenSnackbar(false)}
+					severity='success'
+					sx={{ width: "100%" }}
+				>
+					{snackbarMessage}
+				</Alert>
+			</Snackbar>
+			<Snackbar
+				open={openSnackbar}
+				autoHideDuration={3000}
+				onClose={() => setOpenSnackbar(false)}
+				anchorOrigin={{ vertical: "top", horizontal: "center" }}
+			>
+				<Alert
+					onClose={() => setOpenSnackbar(false)}
+					severity={
+						snackbarMessage.startsWith("✅")
+							? "success"
+							: snackbarMessage.startsWith("⚠️")
+							? "warning"
+							: "error"
+					}
+					sx={{ width: "100%" }}
+				>
+					{snackbarMessage}
+				</Alert>
+			</Snackbar>
 		</Container>
 	);
 };
