@@ -102,7 +102,7 @@ router.post(
 					await transaction
 						.request()
 						.input("product_name", sql.NVarChar(255), product_name)
-						.input("quantity", sql.Int, quantity)
+						.input("quantity", sql.Decimal(10, 2), quantity)
 						.query(
 							"UPDATE Stock SET quantity = quantity - @quantity WHERE product_name = @product_name"
 						);
@@ -202,7 +202,7 @@ router.delete(
 			await pool
 				.request()
 				.input("product_name", sql.NVarChar(255), product_name)
-				.input("quantity", sql.Int, quantity)
+				.input("quantity", sql.Decimal(10, 2), quantity)
 				.query(
 					"UPDATE Stock SET quantity = quantity + @quantity WHERE product_name = @product_name"
 				);
