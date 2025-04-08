@@ -40,7 +40,9 @@ const Sales = () => {
 	const [totalPrice, setTotalPrice] = useState(0);
 	const [receipt, setReceipt] = useState(null);
 	const [salesData, setSalesData] = useState([]);
+	const [loggedInUser, setLoggedInUser] = useState(null);
 	const [receiptData, setReceiptData] = useState(null);
+	const [openReceipt, setOpenReceipt] = useState(false);
 
 	useEffect(() => {
 		fetchSales();
@@ -213,6 +215,11 @@ const Sales = () => {
 		}
 	};
 
+	const handleGenerateReceipt = (sales) => {
+		setReceiptData(sales);
+		setOpenReceipt(true);
+	};
+
 	const handleDelete = async (id) => {
 		if (!window.confirm("Are you sure you want to delete this sale?")) return;
 
@@ -281,6 +288,7 @@ const Sales = () => {
 								<TableCell>Quantity</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
+								{/*<TableCell>Receipt</TableCell>*/}
 								<TableCell>Actions</TableCell>
 							</TableRow>
 						</TableHead>
@@ -303,6 +311,14 @@ const Sales = () => {
 										<TableCell>
 											{new Date(sale.sale_date).toLocaleString()}
 										</TableCell>
+										{/*<TableCell>
+											<Button
+												color='primary'
+												onClick={() => handleGenerateReceipt(sales)}
+											>
+												Generate Receipt
+											</Button>
+										</TableCell>*/}
 										<TableCell>
 											<Button
 												color='secondary'
@@ -411,6 +427,17 @@ const Sales = () => {
 					<Receipt receipt={receipt} onClose={() => setReceipt(null)} />
 				</div>
 			)}
+
+			{/* Receipt Dialog 
+			<Dialog open={openReceipt} onClose={() => setOpenReceipt(false)}>
+				{receiptData && (
+					<Receipt
+						sales={receiptData}
+						user={loggedInUser}
+						onClose={() => setOpenReceipt(false)}
+					/>
+				)}
+			</Dialog>*/}
 		</Container>
 	);
 };

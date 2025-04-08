@@ -281,6 +281,7 @@ const Sales = () => {
 								<TableCell>Quantity</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
+								{/*<TableCell>Actions</TableCell>*/}
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -294,11 +295,22 @@ const Sales = () => {
 									<TableRow key={sale.id}>
 										<TableCell>{sale.id}</TableCell>
 										<TableCell>{sale.product_name}</TableCell>
-										<TableCell>{sale.quantity}</TableCell>
+										<TableCell>
+											{parseFloat(sale.quantity).toFixed(2)}
+										</TableCell>
+
 										<TableCell>KES {sale.total_price}</TableCell>
 										<TableCell>
 											{new Date(sale.sale_date).toLocaleString()}
 										</TableCell>
+										{/*<TableCell>
+											<Button
+												color='secondary'
+												onClick={() => handleDelete(sale.id)}
+											>
+												Delete
+											</Button>
+										</TableCell>*/}
 									</TableRow>
 								))}
 						</TableBody>
@@ -322,7 +334,7 @@ const Sales = () => {
 									options={products}
 									getOptionLabel={(option) =>
 										option && option.product_name
-											? `${option.product_name} - KES ${option.selling_price}`
+											? `${option.product_name} - KES ${option.selling_price} (${option.quantity}L left)`
 											: ""
 									}
 									renderInput={(params) => (
