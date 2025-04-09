@@ -61,6 +61,49 @@ router.post("/", authenticateUser, async (req, res) => {
 	}
 });
 
+// Update supplier
+router.put("/:id", authenticateUser, async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { name, contact, address } = req.body;
+
+		const pool = await poolPromise;
+
+		// Check ownership
+		const supplierCheck = await pool
+			.request()
+			.input("id", sql.Int, id)
+			.input("company_id", sql.Int, req.user.company_id)
+			.query(
+				"SELECT * FROM Suppliers WHERE id = @id AND company_id = @company_id"
+			);
+
+		if (supplierCheck.recordset.length === 0) {
+			return res
+				.status(403)
+				.json({ error: "Unauthorized or supplier not found." });
+		}
+
+		await pool
+			.request()
+			.input("id", sql.Int, id)
+			.input("name", sql.NVarChar(255), name)
+			.input("contact", sql.NVarChar(100), contact)
+			.input("address", sql.NVarChar(255), address)
+			.input("company_id", sql.Int, req.user.company_id)
+			.query(
+				`UPDATE Suppliers 
+				SET name = @name, contact = @contact, address = @address 
+				WHERE id = @id AND company_id = @company_id`
+			);
+
+		res.json({ message: "✅ Supplier updated successfully." });
+	} catch (error) {
+		console.error("❌ Error updating supplier:", error);
+		res.status(500).json({ error: "Internal server error" });
+	}
+});
+
 // Delete supplier
 router.delete(
 	"/:id",

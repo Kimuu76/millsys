@@ -32,6 +32,8 @@ const Suppliers = () => {
 	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
 	const [openSnackbar, setOpenSnackbar] = useState(false);
+	const [editDialogOpen, setEditDialogOpen] = useState(false);
+	const [editSupplier, setEditSupplier] = useState(null);
 	const [snackbarMessage, setSnackbarMessage] = useState("");
 	const [newSupplier, setNewSupplier] = useState({
 		name: "",
@@ -123,6 +125,31 @@ const Suppliers = () => {
 		}
 	};
 
+	const handleUpdateSupplier = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			if (!token || !editSupplier?.id) return;
+
+			await fetch(`${API_BASE_URL}/api/suppliers/${editSupplier.id}`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify(editSupplier),
+			});
+
+			setEditDialogOpen(false);
+			setSnackbarMessage("✅ Supplier updated successfully!");
+			setOpenSnackbar(true);
+			fetchSuppliers();
+		} catch (error) {
+			console.error("❌ Error updating supplier:", error);
+			setSnackbarMessage("❌ Failed to update supplier.");
+			setOpenSnackbar(true);
+		}
+	};
+
 	const handleDelete = async (id) => {
 		if (!window.confirm("Are you sure you want to delete this supplier?"))
 			return;
@@ -201,6 +228,16 @@ const Suppliers = () => {
 										<TableCell>{supplier.address}</TableCell>
 										<TableCell>
 											<Button
+												color='primary'
+												onClick={() => {
+													setEditSupplier(supplier);
+													setEditDialogOpen(true);
+												}}
+											>
+												Edit
+											</Button>
+
+											<Button
 												color='secondary'
 												onClick={() => handleDelete(supplier.id)}
 											>
@@ -253,6 +290,45 @@ const Suppliers = () => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+				<DialogTitle>Edit Supplier</DialogTitle>
+				<DialogContent>
+					<TextField
+						label='Name'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.name || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, name: e.target.value })
+						}
+					/>
+					<TextField
+						label='Contact'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.contact || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, contact: e.target.value })
+						}
+					/>
+					<TextField
+						label='Location'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.address || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, address: e.target.value })
+						}
+					/>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+					<Button onClick={handleUpdateSupplier} color='primary'>
+						Update
+					</Button>
+				</DialogActions>
+			</Dialog>
+
 			<Snackbar
 				open={openSnackbar}
 				autoHideDuration={3000}

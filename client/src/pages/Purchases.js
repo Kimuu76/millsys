@@ -478,7 +478,14 @@ const Purchases = () => {
 				<DialogContent>
 					<Autocomplete
 						options={suppliers}
-						getOptionLabel={(option) => option.name}
+						getOptionLabel={(option) => `${option.name} (ID: ${option.id})`}
+						filterOptions={(options, state) => {
+							return options.filter((option) =>
+								`${option.name} ${option.id}`
+									.toLowerCase()
+									.includes(state.inputValue.toLowerCase())
+							);
+						}}
 						renderInput={(params) => (
 							<TextField
 								{...params}
