@@ -315,10 +315,31 @@ router.get("/:type", authenticateUser, async (req, res) => {
 				];
 				break;
 			case "suppliers":
-				query =
-					"SELECT id, name, contact, address FROM Suppliers WHERE Company_id = @company_id ORDER BY name";
+				query = `
+		SELECT 
+			s.id, 
+			s.name, 
+			s.contact, 
+			s.address, 
+			ISNULL(SUM(p.quantity), 0) AS total_quantity,
+			ISNULL(MAX(p.purchase_price), 0) AS purchase_price,
+			ISNULL(SUM(p.total), 0) AS total_amount
+		FROM Suppliers s
+		LEFT JOIN Purchases p ON s.id = p.supplier_id AND p.company_id = @company_id
+		WHERE s.company_id = @company_id
+		GROUP BY s.id, s.name, s.contact, s.address
+		ORDER BY s.name`;
+
 				title = "Suppliers/Farmers Report";
-				headers = ["ID", "Name", "Contact", "Address"];
+				headers = [
+					"ID",
+					"Name",
+					"Contact",
+					"Address",
+					"Total Quantity",
+					"Avg Price (KES/L)",
+					"Total Amount (KES)",
+				];
 				break;
 			case "products":
 				query =

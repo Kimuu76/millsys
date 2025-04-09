@@ -215,9 +215,24 @@ const Sales = () => {
 		}
 	};
 
-	const handleGenerateReceipt = (sales) => {
-		setReceiptData(sales);
-		setOpenReceipt(true);
+	const generateSaleReceipt = (sale) => {
+		const receiptId = `REC-${sale.id}`;
+		let receiptText = `Receipt ID: ${receiptId}\nDate: ${new Date(
+			sale.sale_date
+		).toLocaleString()}\n--------------------------------\n`;
+		receiptText += `${sale.product_name} x ${parseFloat(sale.quantity).toFixed(
+			2
+		)}L = KES ${parseFloat(sale.total_price).toFixed(2)}\n`;
+		receiptText += `--------------------------------\nTOTAL: KES ${parseFloat(
+			sale.total_price
+		).toFixed(
+			2
+		)}\n================================\nThanks and Always Welcome! 😊`;
+
+		setReceipt({
+			text: receiptText,
+			total_price: sale.total_price,
+		});
 	};
 
 	const handleDelete = async (id) => {
@@ -288,8 +303,8 @@ const Sales = () => {
 								<TableCell>Quantity</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
-								{/*<TableCell>Receipt</TableCell>*/}
 								<TableCell>Actions</TableCell>
+								<TableCell>Receipt</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -311,20 +326,22 @@ const Sales = () => {
 										<TableCell>
 											{new Date(sale.sale_date).toLocaleString()}
 										</TableCell>
-										{/*<TableCell>
-											<Button
-												color='primary'
-												onClick={() => handleGenerateReceipt(sales)}
-											>
-												Generate Receipt
-											</Button>
-										</TableCell>*/}
+
 										<TableCell>
 											<Button
 												color='secondary'
 												onClick={() => handleDelete(sale.id)}
 											>
 												Delete
+											</Button>
+										</TableCell>
+										<TableCell>
+											<Button
+												variant='outlined'
+												color='primary'
+												onClick={() => generateSaleReceipt(sale)}
+											>
+												Receipt
 											</Button>
 										</TableCell>
 									</TableRow>
