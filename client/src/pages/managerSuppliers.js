@@ -21,6 +21,7 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import styled from "styled-components";
 import API_BASE_URL from "../config";
+import * as XLSX from "xlsx";
 
 const Container = styled.div`
 	padding: 20px;
@@ -32,6 +33,8 @@ const Suppliers = () => {
 	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
 	const [openSnackbar, setOpenSnackbar] = useState(false);
+	const [editDialogOpen, setEditDialogOpen] = useState(false);
+	const [editSupplier, setEditSupplier] = useState(null);
 	const [snackbarMessage, setSnackbarMessage] = useState("");
 	const [newSupplier, setNewSupplier] = useState({
 		name: "",
@@ -123,6 +126,71 @@ const Suppliers = () => {
 		}
 	};
 
+	const handleExcelImport = (e) => {
+		const file = e.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const data = new Uint8Array(event.target.result);
+			const workbook = XLSX.read(data, { type: "array" });
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+			try {
+				const token = localStorage.getItem("token");
+
+				const response = await fetch(`${API_BASE_URL}/api/suppliers/import`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({ suppliers: jsonData }),
+				});
+
+				const result = await response.json();
+				if (response.ok) {
+					setSnackbarMessage("✅ Import successful!");
+					fetchSuppliers();
+				} else {
+					setSnackbarMessage(result.error || "❌ Import failed.");
+				}
+				setOpenSnackbar(true);
+			} catch (error) {
+				console.error("❌ Import error:", error);
+			}
+		};
+
+		reader.readAsArrayBuffer(file);
+	};
+
+	const handleUpdateSupplier = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			if (!token || !editSupplier?.id) return;
+
+			await fetch(`${API_BASE_URL}/api/suppliers/${editSupplier.id}`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify(editSupplier),
+			});
+
+			setEditDialogOpen(false);
+			setSnackbarMessage("✅ Supplier updated successfully!");
+			setOpenSnackbar(true);
+			fetchSuppliers();
+		} catch (error) {
+			console.error("❌ Error updating supplier:", error);
+			setSnackbarMessage("❌ Failed to update supplier.");
+			setOpenSnackbar(true);
+		}
+	};
+
 	const handleDelete = async (id) => {
 		if (!window.confirm("Are you sure you want to delete this supplier?"))
 			return;
@@ -162,6 +230,15 @@ const Suppliers = () => {
 			<Button variant='contained' color='primary' onClick={() => setOpen(true)}>
 				Add Farmer/Supplier
 			</Button>
+			<Button variant='outlined' component='label' style={{ marginLeft: 10 }}>
+				Import from Excel
+				<input
+					type='file'
+					accept='.xlsx, .xls'
+					hidden
+					onChange={handleExcelImport}
+				/>
+			</Button>
 
 			{loading ? (
 				<CircularProgress style={{ marginTop: 20 }} />
@@ -179,7 +256,7 @@ const Suppliers = () => {
 								<TableCell>Name</TableCell>
 								<TableCell>Contact</TableCell>
 								<TableCell>Location</TableCell>
-								{/*<TableCell>Actions</TableCell>*/}
+								<TableCell>Actions</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -199,14 +276,24 @@ const Suppliers = () => {
 										<TableCell>{supplier.name}</TableCell>
 										<TableCell>{supplier.contact}</TableCell>
 										<TableCell>{supplier.address}</TableCell>
-										{/*<TableCell>
+										<TableCell>
 											<Button
+												color='primary'
+												onClick={() => {
+													setEditSupplier(supplier);
+													setEditDialogOpen(true);
+												}}
+											>
+												Edit
+											</Button>
+
+											{/*<Button
 												color='secondary'
 												onClick={() => handleDelete(supplier.id)}
 											>
 												Delete
-											</Button>
-										</TableCell>*/}
+											</Button>*/}
+										</TableCell>
 									</TableRow>
 								))}
 						</TableBody>
@@ -253,6 +340,45 @@ const Suppliers = () => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+				<DialogTitle>Edit Supplier</DialogTitle>
+				<DialogContent>
+					<TextField
+						label='Name'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.name || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, name: e.target.value })
+						}
+					/>
+					<TextField
+						label='Contact'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.contact || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, contact: e.target.value })
+						}
+					/>
+					<TextField
+						label='Location'
+						fullWidth
+						margin='dense'
+						value={editSupplier?.address || ""}
+						onChange={(e) =>
+							setEditSupplier({ ...editSupplier, address: e.target.value })
+						}
+					/>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+					<Button onClick={handleUpdateSupplier} color='primary'>
+						Update
+					</Button>
+				</DialogActions>
+			</Dialog>
+
 			<Snackbar
 				open={openSnackbar}
 				autoHideDuration={3000}

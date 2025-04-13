@@ -18,10 +18,12 @@ import {
 	MenuItem,
 	CircularProgress,
 } from "@mui/material";
-import { Autocomplete } from "@mui/material";
 import styled from "styled-components";
+import { Snackbar, Alert } from "@mui/material";
+import { Autocomplete } from "@mui/material";
 import API_BASE_URL from "../config";
 import PurchaseReceipt from "../components/PurchaseReceipt";
+import * as XLSX from "xlsx";
 
 const Container = styled.div`
 	padding: 20px;
@@ -35,6 +37,9 @@ const Purchases = () => {
 	const [open, setOpen] = useState(false);
 	const [receiptData, setReceiptData] = useState(null);
 	const [openReceipt, setOpenReceipt] = useState(false);
+	const [snackbarMessage, setSnackbarMessage] = useState("");
+	const [openSnackbar, setOpenSnackbar] = useState(false);
+
 	const [loading, setLoading] = useState(true);
 	const [newPurchase, setNewPurchase] = useState({
 		product_name: "",
@@ -43,6 +48,15 @@ const Purchases = () => {
 		purchase_price: 0,
 		total: 0,
 	});
+	const [openReturnDialog, setOpenReturnDialog] = useState(false);
+	const [returnData, setReturnData] = useState({ id: "", return_quantity: "" });
+
+	const [loggedInUser, setLoggedInUser] = useState(null);
+
+	useEffect(() => {
+		const userData = JSON.parse(localStorage.getItem("user")); // check your key name
+		if (userData) setLoggedInUser(userData);
+	}, []);
 
 	useEffect(() => {
 		fetchPurchases();
@@ -68,7 +82,16 @@ const Purchases = () => {
 			});
 
 			const data = await response.json();
-			setPurchases(Array.isArray(data) ? data : []);
+
+			// ✅ Ensure return_quantity is included in each purchase
+			setPurchases(
+				Array.isArray(data)
+					? data.map((purchase) => ({
+							...purchase,
+							return_quantity: purchase.return_quantity || 0, // Default to 0 if missing
+					  }))
+					: []
+			);
 		} catch (error) {
 			console.error("❌ Error fetching purchases:", error);
 			setPurchases([]);
@@ -196,14 +219,18 @@ const Purchases = () => {
 				return;
 			}
 
-			await fetch(`${API_BASE_URL}/api/purchases`, {
+			const response = await fetch(`${API_BASE_URL}/api/purchases`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`, // ✅ Secure API call
+					Authorization: `Bearer ${token}`,
 				},
 				body: JSON.stringify(newPurchase),
 			});
+
+			// ✅ Show success snackbar
+			setSnackbarMessage("✅ Purchase added successfully!");
+			setOpenSnackbar(true);
 
 			fetchPurchases();
 			setOpen(false);
@@ -215,7 +242,116 @@ const Purchases = () => {
 				total: 0,
 			});
 		} catch (error) {
-			console.error("❌ Error adding purchase:", error);
+			console.error("❌ Error adding purchase:", error.message);
+			setSnackbarMessage("❌ Failed to add purchase.");
+			setOpenSnackbar(true);
+		}
+	};
+
+	const handleImportFile = async (file) => {
+		try {
+			const token = localStorage.getItem("token");
+
+			if (!file || !token) return;
+
+			const reader = new FileReader();
+
+			reader.onload = async (e) => {
+				const data = new Uint8Array(e.target.result);
+				const workbook = XLSX.read(data, { type: "array" });
+				const sheet = workbook.Sheets[workbook.SheetNames[0]];
+				const json = XLSX.utils.sheet_to_json(sheet);
+
+				// Send to backend
+				const response = await fetch(`${API_BASE_URL}/api/purchases/import`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({ data: json }),
+				});
+
+				if (!response.ok) throw new Error("Failed to import");
+
+				setSnackbarMessage("✅ Purchases imported successfully!");
+				setOpenSnackbar(true);
+				fetchPurchases();
+			};
+
+			reader.readAsArrayBuffer(file);
+		} catch (err) {
+			console.error("❌ Import error:", err);
+			setSnackbarMessage("❌ Failed to import purchases.");
+			setOpenSnackbar(true);
+		}
+	};
+
+	const markAsPaid = async (id) => {
+		if (!window.confirm("Are you sure you want to mark this as Paid?")) return;
+
+		try {
+			const token = localStorage.getItem("token");
+
+			if (!token) {
+				console.error("⚠️ No token found. User must log in.");
+				return;
+			}
+
+			const response = await fetch(`${API_BASE_URL}/api/purchases/${id}/pay`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`, // ✅ Secure API call
+				},
+			});
+
+			if (!response.ok) {
+				// ✅ Extract company details from API response
+
+				throw new Error("Failed to update purchase status.");
+			}
+
+			// ✅ Update the UI immediately after marking as paid
+			setPurchases((prevPurchases) =>
+				prevPurchases.map((purchase) =>
+					purchase.id === id ? { ...purchase, status: "Paid" } : purchase
+				)
+			);
+
+			console.log("✅ Purchase marked as Paid successfully.");
+		} catch (error) {
+			console.error("❌ Error updating purchase status:", error);
+		}
+	};
+
+	const handleReturnPurchase = async () => {
+		if (!returnData.return_quantity || returnData.return_quantity <= 0) {
+			return alert("Enter a valid return quantity.");
+		}
+
+		try {
+			const token = localStorage.getItem("token");
+
+			if (!token) {
+				console.error("⚠️ No token found. User must log in.");
+				return;
+			}
+
+			await fetch(`${API_BASE_URL}/api/purchases/${returnData.id}/return`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ return_quantity: returnData.return_quantity }),
+			});
+
+			fetchPurchases(); // Refresh data
+			setOpenReturnDialog(false);
+			setReturnData({ id: "", return_quantity: "" });
+		} catch (error) {
+			console.error("❌ Error processing return:", error);
 		}
 	};
 
@@ -262,6 +398,20 @@ const Purchases = () => {
 			<Button variant='contained' color='primary' onClick={() => setOpen(true)}>
 				Add Purchase
 			</Button>
+			<Button
+				variant='outlined'
+				color='secondary'
+				component='label'
+				sx={{ ml: 2 }}
+			>
+				Import from Excel
+				<input
+					type='file'
+					accept='.xlsx, .xls'
+					hidden
+					onChange={(e) => handleImportFile(e.target.files[0])}
+				/>
+			</Button>
 
 			{loading ? (
 				<CircularProgress style={{ marginTop: 20 }} />
@@ -287,8 +437,9 @@ const Purchases = () => {
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
 								<TableCell>Status</TableCell>
-								<TableCell>Receipt</TableCell>
 								{/*<TableCell>Actions</TableCell>*/}
+								<TableCell>Return</TableCell>
+								<TableCell>Receipt</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -315,15 +466,50 @@ const Purchases = () => {
 										<TableCell>
 											{new Date(purchase.createdAt).toLocaleString()}
 										</TableCell>
-
 										<TableCell>
-											<strong
-												style={{
-													color: purchase.status === "Paid" ? "green" : "red",
-												}}
+											{purchase.status === "Paid" ? (
+												<span style={{ color: "green", fontWeight: "bold" }}>
+													Paid
+												</span>
+											) : (
+												<Button
+													color='secondary'
+													onClick={() => markAsPaid(purchase.id)}
+												>
+													Pay
+												</Button>
+											)}
+										</TableCell>
+										{/*<TableCell>
+											<Button
+												color='error'
+												onClick={() => handleDelete(purchase.id)}
 											>
-												{purchase.status}
-											</strong>
+												Delete
+											</Button>
+										</TableCell>*/}
+										<TableCell>
+											{purchase.status === "Returned" ? (
+												<span style={{ color: "red", fontWeight: "bold" }}>
+													Returned{" "}
+													{purchase.return_quantity &&
+														`(Qty: ${purchase.return_quantity})`}
+												</span>
+											) : (
+												<Button
+													variant='outlined'
+													color='error'
+													onClick={() => {
+														setReturnData({
+															id: purchase.id,
+															return_quantity: "",
+														});
+														setOpenReturnDialog(true);
+													}}
+												>
+													Return
+												</Button>
+											)}
 										</TableCell>
 										<TableCell>
 											<Button
@@ -346,9 +532,21 @@ const Purchases = () => {
 				<DialogContent>
 					<Autocomplete
 						options={suppliers}
-						getOptionLabel={(option) => option.name}
+						getOptionLabel={(option) => `${option.name} (ID: ${option.id})`}
+						filterOptions={(options, state) => {
+							return options.filter((option) =>
+								`${option.name} ${option.id}`
+									.toLowerCase()
+									.includes(state.inputValue.toLowerCase())
+							);
+						}}
 						renderInput={(params) => (
-							<TextField {...params} label='Farmer' fullWidth margin='dense' />
+							<TextField
+								{...params}
+								label='Supplier'
+								fullWidth
+								margin='dense'
+							/>
 						)}
 						onChange={(event, newValue) => {
 							setNewPurchase({
@@ -372,7 +570,7 @@ const Purchases = () => {
 						))}
 					</TextField>
 					<TextField
-						label='Quantity'
+						label='Quantity(L)'
 						fullWidth
 						margin='dense'
 						type='number'
@@ -395,15 +593,56 @@ const Purchases = () => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+			<Dialog
+				open={openReturnDialog}
+				onClose={() => setOpenReturnDialog(false)}
+			>
+				<DialogTitle>Return Purchase</DialogTitle>
+				<DialogContent>
+					<TextField
+						label='Return Quantity'
+						type='number'
+						fullWidth
+						margin='normal'
+						value={returnData.return_quantity}
+						onChange={(e) =>
+							setReturnData({ ...returnData, return_quantity: e.target.value })
+						}
+					/>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setOpenReturnDialog(false)} color='secondary'>
+						Cancel
+					</Button>
+					<Button onClick={handleReturnPurchase} color='primary'>
+						Return
+					</Button>
+				</DialogActions>
+			</Dialog>
 			{/* Receipt Dialog */}
 			<Dialog open={openReceipt} onClose={() => setOpenReceipt(false)}>
 				{receiptData && (
 					<PurchaseReceipt
 						purchase={receiptData}
+						user={loggedInUser}
 						onClose={() => setOpenReceipt(false)}
 					/>
 				)}
 			</Dialog>
+			<Snackbar
+				open={openSnackbar}
+				autoHideDuration={4000}
+				onClose={() => setOpenSnackbar(false)}
+				anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+			>
+				<Alert
+					onClose={() => setOpenSnackbar(false)}
+					severity='success'
+					sx={{ width: "100%" }}
+				>
+					{snackbarMessage}
+				</Alert>
+			</Snackbar>
 		</Container>
 	);
 };

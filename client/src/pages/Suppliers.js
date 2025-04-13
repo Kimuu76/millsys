@@ -21,6 +21,7 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import styled from "styled-components";
 import API_BASE_URL from "../config";
+import * as XLSX from "xlsx";
 
 const Container = styled.div`
 	padding: 20px;
@@ -125,6 +126,46 @@ const Suppliers = () => {
 		}
 	};
 
+	const handleExcelImport = (e) => {
+		const file = e.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const data = new Uint8Array(event.target.result);
+			const workbook = XLSX.read(data, { type: "array" });
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+			const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+			try {
+				const token = localStorage.getItem("token");
+
+				const response = await fetch(`${API_BASE_URL}/api/suppliers/import`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({ suppliers: jsonData }),
+				});
+
+				const result = await response.json();
+				if (response.ok) {
+					setSnackbarMessage("✅ Import successful!");
+					fetchSuppliers();
+				} else {
+					setSnackbarMessage(result.error || "❌ Import failed.");
+				}
+				setOpenSnackbar(true);
+			} catch (error) {
+				console.error("❌ Import error:", error);
+			}
+		};
+
+		reader.readAsArrayBuffer(file);
+	};
+
 	const handleUpdateSupplier = async () => {
 		try {
 			const token = localStorage.getItem("token");
@@ -188,6 +229,15 @@ const Suppliers = () => {
 			/>
 			<Button variant='contained' color='primary' onClick={() => setOpen(true)}>
 				Add Farmer/Supplier
+			</Button>
+			<Button variant='outlined' component='label' style={{ marginLeft: 10 }}>
+				Import from Excel
+				<input
+					type='file'
+					accept='.xlsx, .xls'
+					hidden
+					onChange={handleExcelImport}
+				/>
 			</Button>
 
 			{loading ? (

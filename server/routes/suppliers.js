@@ -61,6 +61,38 @@ router.post("/", authenticateUser, async (req, res) => {
 	}
 });
 
+router.post("/import", authenticateUser, async (req, res) => {
+	try {
+		const { suppliers } = req.body;
+		if (!Array.isArray(suppliers) || suppliers.length === 0) {
+			return res.status(400).json({ error: "No supplier data provided." });
+		}
+
+		const pool = await poolPromise;
+		for (const supplier of suppliers) {
+			const { name, contact, address } = supplier;
+
+			if (!name || !contact || !address) continue; // skip invalid
+
+			await pool
+				.request()
+				.input("name", sql.NVarChar(255), name)
+				.input("contact", sql.NVarChar(100), contact)
+				.input("address", sql.NVarChar(255), address)
+				.input("company_id", sql.Int, req.user.company_id)
+				.query(
+					`INSERT INTO Suppliers (name, contact, address, company_id)
+					 VALUES (@name, @contact, @address, @company_id)`
+				);
+		}
+
+		res.status(201).json({ message: "✅ Suppliers imported successfully." });
+	} catch (error) {
+		console.error("❌ Import error:", error);
+		res.status(500).json({ error: "Server error during import." });
+	}
+});
+
 // Update supplier
 router.put("/:id", authenticateUser, async (req, res) => {
 	try {
