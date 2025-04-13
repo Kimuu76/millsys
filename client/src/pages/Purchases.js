@@ -23,6 +23,7 @@ import { Snackbar, Alert } from "@mui/material";
 import { Autocomplete } from "@mui/material";
 import API_BASE_URL from "../config";
 import PurchaseReceipt from "../components/PurchaseReceipt";
+import * as XLSX from "xlsx";
 
 const Container = styled.div`
 	padding: 20px;
@@ -247,6 +248,45 @@ const Purchases = () => {
 		}
 	};
 
+	const handleImportFile = async (file) => {
+		try {
+			const token = localStorage.getItem("token");
+
+			if (!file || !token) return;
+
+			const reader = new FileReader();
+
+			reader.onload = async (e) => {
+				const data = new Uint8Array(e.target.result);
+				const workbook = XLSX.read(data, { type: "array" });
+				const sheet = workbook.Sheets[workbook.SheetNames[0]];
+				const json = XLSX.utils.sheet_to_json(sheet);
+
+				// Send to backend
+				const response = await fetch(`${API_BASE_URL}/api/purchases/import`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({ data: json }),
+				});
+
+				if (!response.ok) throw new Error("Failed to import");
+
+				setSnackbarMessage("✅ Purchases imported successfully!");
+				setOpenSnackbar(true);
+				fetchPurchases();
+			};
+
+			reader.readAsArrayBuffer(file);
+		} catch (err) {
+			console.error("❌ Import error:", err);
+			setSnackbarMessage("❌ Failed to import purchases.");
+			setOpenSnackbar(true);
+		}
+	};
+
 	const markAsPaid = async (id) => {
 		if (!window.confirm("Are you sure you want to mark this as Paid?")) return;
 
@@ -357,6 +397,20 @@ const Purchases = () => {
 			/>
 			<Button variant='contained' color='primary' onClick={() => setOpen(true)}>
 				Add Purchase
+			</Button>
+			<Button
+				variant='outlined'
+				color='secondary'
+				component='label'
+				sx={{ ml: 2 }}
+			>
+				Import from Excel
+				<input
+					type='file'
+					accept='.xlsx, .xls'
+					hidden
+					onChange={(e) => handleImportFile(e.target.files[0])}
+				/>
 			</Button>
 
 			{loading ? (

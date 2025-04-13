@@ -148,6 +148,77 @@ router.post(
 	}
 );
 
+router.post(
+	"/import",
+	authenticateUser,
+	authorizeRole(["Admin", "Manager"]),
+	async (req, res) => {
+		try {
+			const { data } = req.body;
+			const company_id = req.user.company_id;
+
+			if (!Array.isArray(data) || data.length === 0) {
+				return res.status(400).json({ error: "Invalid import data" });
+			}
+
+			const pool = await poolPromise;
+			const insertPromises = [];
+
+			for (const row of data) {
+				const { product_name, supplier_id, quantity } = row;
+
+				if (!product_name || !supplier_id || !quantity) continue;
+
+				const stockQuery = await pool
+					.request()
+					.input("company_id", sql.Int, company_id)
+					.input("product_name", sql.NVarChar, product_name)
+					.query(
+						`SELECT purchase_price FROM Stock WHERE product_name = @product_name AND company_id = @company_id`
+					);
+
+				if (stockQuery.recordset.length === 0) continue;
+
+				const purchase_price = stockQuery.recordset[0].purchase_price;
+				const total = purchase_price * quantity;
+
+				insertPromises.push(
+					pool
+						.request()
+						.input("company_id", sql.Int, company_id)
+						.input("product_name", sql.NVarChar, product_name)
+						.input("supplier_id", sql.Int, supplier_id)
+						.input("quantity", sql.Decimal(10, 2), quantity)
+						.input("purchase_price", sql.Decimal(10, 2), purchase_price)
+						.input("total", sql.Decimal(10, 2), total)
+						.query(
+							`INSERT INTO Purchases (product_name, supplier_id, quantity, purchase_price, total, company_id) 
+							 VALUES (@product_name, @supplier_id, @quantity, @purchase_price, @total, @company_id)`
+						)
+				);
+
+				// Update stock
+				await pool
+					.request()
+					.input("company_id", sql.Int, company_id)
+					.input("product_name", sql.NVarChar, product_name)
+					.input("quantity", sql.Decimal(10, 2), quantity)
+					.query(
+						`UPDATE Stock SET quantity = quantity + @quantity 
+						 WHERE product_name = @product_name AND company_id = @company_id`
+					);
+			}
+
+			await Promise.all(insertPromises);
+
+			res.json({ message: "✅ Purchases imported successfully." });
+		} catch (error) {
+			console.error("❌ Error importing purchases:", error);
+			res.status(500).json({ error: "Internal server error" });
+		}
+	}
+);
+
 // ✅ Delete a purchase & update stock (Admins & Managers)
 router.delete(
 	"/:id",
