@@ -8,7 +8,7 @@ const dbConfig = {
 	password: process.env.DB_PASSWORD,
 	server: process.env.DB_SERVER,
 	database: process.env.DB_NAME,
-	port: parseInt(process.env.DB_PORT) || 1433, // Ensure it's a number
+	//port: parseInt(process.env.DB_PORT) || 1433, // Ensure it's a number
 	options: {
 		encrypt: true, // Change to true if using Azure
 		trustServerCertificate: true,
