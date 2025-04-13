@@ -64,15 +64,24 @@ router.post("/", authenticateUser, async (req, res) => {
 router.post("/import", authenticateUser, async (req, res) => {
 	try {
 		const { suppliers } = req.body;
+
 		if (!Array.isArray(suppliers) || suppliers.length === 0) {
 			return res.status(400).json({ error: "No supplier data provided." });
 		}
 
 		const pool = await poolPromise;
-		for (const supplier of suppliers) {
-			const { name, contact, address } = supplier;
 
-			if (!name || !contact || !address) continue; // skip invalid
+		for (const supplier of suppliers) {
+			// 🔐 Sanitize and convert all to string
+			const name = supplier.name?.toString().trim();
+			const contact = supplier.contact?.toString().trim();
+			const address = supplier.address?.toString().trim();
+
+			// ❌ Skip invalid entries
+			if (!name || !contact || !address) continue;
+
+			// ✅ Optional: validate contact format (supports 2547xxxxxxx)
+			if (!/^\d{10,15}$/.test(contact)) continue;
 
 			await pool
 				.request()
