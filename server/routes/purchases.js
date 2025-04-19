@@ -272,6 +272,54 @@ router.delete(
 	}
 );
 
+// ✅ Delete ALL purchases (Admin only)
+router.delete(
+	"/delete-all",
+	authenticateUser,
+	authorizeRole(["Admin"]),
+	async (req, res) => {
+		try {
+			const pool = await poolPromise;
+
+			// ✅ Fetch all purchases to reverse their quantities from stock
+			const purchaseResult = await pool
+				.request()
+				.input("company_id", sql.Int, req.user.company_id).query(`
+					SELECT product_name, quantity 
+					FROM Purchases 
+					WHERE company_id = @company_id
+				`);
+
+			// ✅ Update stock by subtracting each purchase quantity
+			for (const { product_name, quantity } of purchaseResult.recordset) {
+				await pool
+					.request()
+					.input("company_id", sql.Int, req.user.company_id)
+					.input("product_name", sql.NVarChar(255), product_name)
+					.input("quantity", sql.Decimal(10, 2), quantity).query(`
+						UPDATE Stock
+						SET quantity = quantity - @quantity
+						WHERE product_name = @product_name AND company_id = @company_id
+					`);
+			}
+
+			// ✅ Now delete all purchases for the company
+			await pool.request().input("company_id", sql.Int, req.user.company_id)
+				.query(`
+					DELETE FROM Purchases 
+					WHERE company_id = @company_id
+				`);
+
+			res.json({ message: "✅ All purchases deleted and stock updated." });
+		} catch (error) {
+			console.error("❌ Error deleting all purchases:", error);
+			res
+				.status(500)
+				.json({ error: "Server error while deleting all purchases." });
+		}
+	}
+);
+
 // ✅ Admins can mark purchases as Paid
 router.put(
 	"/:id/pay",

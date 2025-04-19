@@ -15,10 +15,22 @@ const createSalesTable = async () => {
 				total_price DECIMAL(10,2) NOT NULL,
 				company_id INT NOT NULL,  -- 🔥 Added company_id
 				sale_date DATETIME DEFAULT GETDATE(),
+				customer NVARCHAR(255),
 				FOREIGN KEY (company_id) REFERENCES Companies(id) ON DELETE CASCADE
 			)
 		`);
-		console.log("✅ Sales table checked/created.");
+
+		// Add customer column if it doesn't exist (for schema updates)
+		await pool.query(`
+			IF NOT EXISTS (
+				SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+				WHERE TABLE_NAME = 'Sales' AND COLUMN_NAME = 'customer'
+			)
+			BEGIN
+				ALTER TABLE Sales ADD customer NVARCHAR(255);
+			END
+		`);
+		console.log("✅ Sales table checked/created with customer support.");
 	} catch (error) {
 		console.log("❌ Error creating Sales table:", error);
 	}

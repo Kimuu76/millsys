@@ -33,6 +33,7 @@ const Container = styled.div`
 const Sales = () => {
 	const [sales, setSales] = useState([]);
 	const [search, setSearch] = useState("");
+	const [customerName, setCustomerName] = useState("");
 	const [products, setProducts] = useState([]);
 	const [open, setOpen] = useState(false);
 	const [loading, setLoading] = useState(true);
@@ -172,6 +173,7 @@ const Sales = () => {
 				body: JSON.stringify({
 					products: selectedProducts,
 					total_price: totalPrice,
+					customer: customerName,
 				}),
 			});
 
@@ -300,6 +302,7 @@ const Sales = () => {
 							<TableRow>
 								<TableCell>ID</TableCell>
 								<TableCell>Product</TableCell>
+								<TableCell>Customer</TableCell>
 								<TableCell>Quantity</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
@@ -318,6 +321,7 @@ const Sales = () => {
 									<TableRow key={sale.id}>
 										<TableCell>{sale.id}</TableCell>
 										<TableCell>{sale.product_name}</TableCell>
+										<TableCell>{sale.customer || "N/A"}</TableCell>
 										<TableCell>
 											{parseFloat(sale.quantity).toFixed(2)}
 										</TableCell>
@@ -375,6 +379,14 @@ const Sales = () => {
 									)}
 									onChange={(event, value) => handleProductChange(index, value)} // ✅ Pass entire product object
 									noOptionsText='No products available'
+								/>
+
+								<TextField
+									label='Customer Name'
+									fullWidth
+									margin='dense'
+									value={customerName}
+									onChange={(e) => setCustomerName(e.target.value)}
 								/>
 
 								<TextField

@@ -16,7 +16,7 @@ router.post(
 	authorizeRole(["Cashier", "Admin", "Manager"]),
 	async (req, res) => {
 		try {
-			const { products } = req.body;
+			const { products, customer } = req.body;
 			const { company_id } = req.user;
 
 			console.log(
@@ -94,8 +94,9 @@ router.post(
 						.input("quantity", sql.Decimal(10, 2), quantity)
 						.input("total_price", sql.Decimal(10, 2), itemTotalPrice)
 						.input("company_id", sql.Int, company_id)
+						.input("customer", sql.NVarChar(255), customer || null)
 						.query(
-							"INSERT INTO Sales (product_name, quantity, total_price, company_id) VALUES (@product_name, @quantity, @total_price, @company_id)"
+							"INSERT INTO Sales (product_name, quantity, total_price, company_id, customer) VALUES (@product_name, @quantity, @total_price, @company_id, @customer)"
 						);
 
 					// ✅ Reduce stock
@@ -152,7 +153,7 @@ router.get("/", authenticateUser, async (req, res) => {
 		const pool = await poolPromise;
 		const result = await pool.request().input("company_id", sql.Int, company_id)
 			.query(`
-				SELECT s.id, s.product_name, s.quantity, s.total_price, s.sale_date, c.name AS company_name
+				SELECT s.id, s.product_name, s.quantity, s.total_price, s.sale_date, s.customer, c.name AS company_name
 				FROM Sales s
 				JOIN Companies c ON s.company_id = c.id
 				WHERE s.company_id = @company_id

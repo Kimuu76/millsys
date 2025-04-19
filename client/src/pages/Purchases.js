@@ -360,6 +360,40 @@ const Purchases = () => {
 		setOpenReceipt(true);
 	};
 
+	const handleDeleteAllPurchases = async () => {
+		if (
+			!window.confirm(
+				"⚠️ Are you sure you want to delete ALL purchases? This action cannot be undone."
+			)
+		)
+			return;
+
+		try {
+			const token = localStorage.getItem("token");
+
+			const response = await fetch(`${API_BASE_URL}/api/purchases/delete-all`, {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to delete all purchases.");
+			}
+
+			setSnackbarMessage("✅ All purchases deleted successfully!");
+			setOpenSnackbar(true);
+			fetchPurchases(); // Refresh data
+		} catch (error) {
+			console.error("❌ Error deleting all purchases:", error);
+			setSnackbarMessage("❌ Failed to delete all purchases.");
+			setOpenSnackbar(true);
+		}
+	};
+
 	const handleDelete = async (id) => {
 		if (!window.confirm("Are you sure you want to delete this purchase?"))
 			return;
@@ -412,6 +446,14 @@ const Purchases = () => {
 					onChange={(e) => handleImportFile(e.target.files[0])}
 				/>
 			</Button>
+			{/*<Button
+				variant='contained'
+				color='error'
+				style={{ marginLeft: 10 }}
+				onClick={handleDeleteAllPurchases}
+			>
+				Delete All Purchases
+			</Button>*/}
 
 			{loading ? (
 				<CircularProgress style={{ marginTop: 20 }} />
