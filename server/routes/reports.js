@@ -14,6 +14,9 @@ const getDateFilterQuery = (filter, column) => {
 		case "day":
 			condition = `CONVERT(DATE, ${column}) = CONVERT(DATE, GETDATE())`;
 			break;
+		case "previous-week":
+			condition = `DATEPART(WEEK, ${column}) = DATEPART(WEEK, DATEADD(WEEK, -1, GETDATE())) AND YEAR(${column}) = YEAR(DATEADD(WEEK, -1, GETDATE()))`;
+			break;
 		case "week":
 			condition = `DATEPART(WEEK, ${column}) = DATEPART(WEEK, GETDATE()) AND YEAR(${column}) = YEAR(GETDATE())`;
 			break;

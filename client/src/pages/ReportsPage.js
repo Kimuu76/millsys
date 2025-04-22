@@ -193,13 +193,15 @@ const ReportsPage = () => {
 				Filter by:
 			</Typography>
 			<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-				{["", "day", "week", "month", "year"].map((f) => (
+				{["", "day", "previous-week", "week", "month", "year"].map((f) => (
 					<Button
 						key={f}
 						variant={filter === f ? "contained" : "outlined"}
 						onClick={() => setFilter(f)}
 					>
-						{f ? f.charAt(0).toUpperCase() + f.slice(1) : "All"}
+						{f
+							? f.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+							: "All"}
 					</Button>
 				))}
 			</Box>
