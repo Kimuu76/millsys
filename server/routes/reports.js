@@ -272,20 +272,30 @@ router.get("/:type", authenticateUser, async (req, res) => {
 
 		switch (type) {
 			case "sales":
-				query = `SELECT id, product_name, quantity, total_price, sale_date 
-                         FROM Sales 
-                         WHERE company_id = @company_id 
-                         ${dateFilter} 
-                         ORDER BY sale_date DESC`;
-				title = "Sales Report";
+				query = `
+		SELECT 
+			id, 
+			customer, 
+			product_name, 
+			quantity, 
+			total_price, 
+			sale_date 
+		FROM Sales 
+		WHERE company_id = @company_id 
+		${dateFilter} 
+		ORDER BY sale_date DESC
+	`;
+				title = "Sales Report (By Customer)";
 				headers = [
 					"ID",
+					"Customer Name",
 					"Product Name",
 					"Quantity",
 					"Total Price",
 					"Sale Date",
 				];
 				break;
+
 			case "stock":
 				query = `SELECT id, product_name, quantity, purchase_price, selling_price 
                          FROM Stock 
