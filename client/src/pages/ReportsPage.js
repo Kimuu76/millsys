@@ -170,23 +170,17 @@ const ReportsPage = () => {
 
 			{/* Report Type Selector */}
 			<Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-				{[
-					"sales",
-					"products",
-					"purchases",
-					"expenses",
-					"stock",
-					"suppliers",
-					"users",
-				].map((type) => (
-					<Button
-						key={type}
-						variant={reportType === type ? "contained" : "outlined"}
-						onClick={() => setReportType(type)}
-					>
-						{type.charAt(0).toUpperCase() + type.slice(1)}
-					</Button>
-				))}
+				{["sales", "products", "expenses", "stock", "suppliers", "users"].map(
+					(type) => (
+						<Button
+							key={type}
+							variant={reportType === type ? "contained" : "outlined"}
+							onClick={() => setReportType(type)}
+						>
+							{type.charAt(0).toUpperCase() + type.slice(1)}
+						</Button>
+					)
+				)}
 			</Box>
 			{/* ✅ Filter Selector */}
 			<Typography variant='h6' sx={{ mt: 2, mb: 1 }}>
