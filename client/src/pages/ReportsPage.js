@@ -193,7 +193,7 @@ const ReportsPage = () => {
 				Filter by:
 			</Typography>
 			<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-				{["", "day", "previous-week", "week", "month", "year"].map((f) => (
+				{["", "previous-week", "week", "month", "year"].map((f) => (
 					<Button
 						key={f}
 						variant={filter === f ? "contained" : "outlined"}
