@@ -325,11 +325,14 @@ router.get("/:type", authenticateUser, async (req, res) => {
 			ISNULL(MAX(p.purchase_price), 0) AS purchase_price,
 			ISNULL(SUM(p.total), 0) AS total_amount
 		FROM Suppliers s
-		LEFT JOIN Purchases p ON s.id = p.supplier_id AND p.company_id = @company_id
+		LEFT JOIN Purchases p 
+			ON s.id = p.supplier_id 
+			AND p.company_id = @company_id
+			${getDateFilterQuery(filter, "p.createdAt")}
 		WHERE s.company_id = @company_id
 		GROUP BY s.id, s.name, s.contact, s.address
-		ORDER BY s.name`;
-
+		ORDER BY s.name
+	`;
 				title = "Suppliers/Farmers Report";
 				headers = [
 					"ID",
@@ -341,6 +344,7 @@ router.get("/:type", authenticateUser, async (req, res) => {
 					"Total Amount (KES)",
 				];
 				break;
+
 			case "products":
 				query =
 					"SELECT id, name FROM Products WHERE company_id = @company_id ORDER BY name";
