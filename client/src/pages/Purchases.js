@@ -251,11 +251,9 @@ const Purchases = () => {
 	const handleImportFile = async (file) => {
 		try {
 			const token = localStorage.getItem("token");
-
 			if (!file || !token) return;
 
 			const reader = new FileReader();
-
 			reader.onload = async (e) => {
 				const data = new Uint8Array(e.target.result);
 				const workbook = XLSX.read(data, { type: "array" });
@@ -478,7 +476,7 @@ const Purchases = () => {
 								<TableCell>Purchase Price</TableCell>
 								<TableCell>Total Price</TableCell>
 								<TableCell>Date</TableCell>
-								<TableCell>Status</TableCell>
+								{/*<TableCell>Status</TableCell>*/}
 								<TableCell>Actions</TableCell>
 								<TableCell>Return</TableCell>
 								<TableCell>Receipt</TableCell>
@@ -508,7 +506,7 @@ const Purchases = () => {
 										<TableCell>
 											{new Date(purchase.createdAt).toLocaleString()}
 										</TableCell>
-										<TableCell>
+										{/*<TableCell>
 											{purchase.status === "Paid" ? (
 												<span style={{ color: "green", fontWeight: "bold" }}>
 													Paid
@@ -521,7 +519,7 @@ const Purchases = () => {
 													Pay
 												</Button>
 											)}
-										</TableCell>
+										</TableCell>*/}
 										<TableCell>
 											<Button
 												color='error'

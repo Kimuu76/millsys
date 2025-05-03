@@ -166,20 +166,27 @@ router.post(
 
 			for (const row of data) {
 				const { product_name, supplier_id, quantity } = row;
+				let { purchase_price } = row;
 
 				if (!product_name || !supplier_id || !quantity) continue;
 
-				const stockQuery = await pool
-					.request()
-					.input("company_id", sql.Int, company_id)
-					.input("product_name", sql.NVarChar, product_name)
-					.query(
-						`SELECT purchase_price FROM Stock WHERE product_name = @product_name AND company_id = @company_id`
-					);
+				const pool = await poolPromise;
 
-				if (stockQuery.recordset.length === 0) continue;
+				// If no purchase_price provided, fetch from stock
+				if (!purchase_price || purchase_price <= 0) {
+					const stockQuery = await pool
+						.request()
+						.input("company_id", sql.Int, company_id)
+						.input("product_name", sql.NVarChar, product_name)
+						.query(
+							`SELECT purchase_price FROM Stock WHERE product_name = @product_name AND company_id = @company_id`
+						);
 
-				const purchase_price = stockQuery.recordset[0].purchase_price;
+					if (stockQuery.recordset.length === 0) continue;
+
+					purchase_price = stockQuery.recordset[0].purchase_price;
+				}
+
 				const total = purchase_price * quantity;
 
 				insertPromises.push(
@@ -193,7 +200,7 @@ router.post(
 						.input("total", sql.Decimal(10, 2), total)
 						.query(
 							`INSERT INTO Purchases (product_name, supplier_id, quantity, purchase_price, total, company_id) 
-							 VALUES (@product_name, @supplier_id, @quantity, @purchase_price, @total, @company_id)`
+				VALUES (@product_name, @supplier_id, @quantity, @purchase_price, @total, @company_id)`
 						)
 				);
 
@@ -205,7 +212,7 @@ router.post(
 					.input("quantity", sql.Decimal(10, 2), quantity)
 					.query(
 						`UPDATE Stock SET quantity = quantity + @quantity 
-						 WHERE product_name = @product_name AND company_id = @company_id`
+			 WHERE product_name = @product_name AND company_id = @company_id`
 					);
 			}
 
