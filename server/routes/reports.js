@@ -271,6 +271,91 @@ router.get("/:type", authenticateUser, async (req, res) => {
 		const dateFilter = getDateFilterQuery(filter, dateColumn);
 
 		switch (type) {
+			case "daily-report":
+				query = `
+    DECLARE @today DATE = CONVERT(DATE, GETDATE());
+
+    -- Intake (purchases)
+    SELECT 
+        'Total Purchases (Intake)' AS type,
+        ISNULL(SUM(p.quantity), 0) AS quantity,
+        NULL AS customer,
+        NULL AS total_price
+    FROM Purchases p
+    WHERE CONVERT(DATE, p.createdAt) = @today AND p.company_id = @company_id
+
+    UNION ALL
+
+    -- Total Sales (Liters)
+    SELECT 
+        'Total Sales (Liters)' AS type,
+        ISNULL(SUM(s.quantity), 0),
+        NULL,
+        NULL
+    FROM Sales s
+    WHERE CONVERT(DATE, s.sale_date) = @today AND s.company_id = @company_id
+
+    UNION ALL
+
+    -- Sales to Brookside
+    SELECT 
+        'Sales to Brookside' AS type,
+        ISNULL(SUM(s.quantity), 0),
+        'Brookside',
+        ISNULL(SUM(s.total_price), 0)
+    FROM Sales s
+    WHERE CONVERT(DATE, s.sale_date) = @today AND s.customer = 'Brookside' AND s.company_id = @company_id
+
+    UNION ALL
+
+    -- Sales to Local Customers
+    SELECT 
+        'Sales to Local Customers' AS type,
+        ISNULL(SUM(s.quantity), 0),
+        'Local Sales',
+        ISNULL(SUM(s.total_price), 0)
+    FROM Sales s
+    WHERE CONVERT(DATE, s.sale_date) = @today AND s.customer = 'Local' AND s.company_id = @company_id
+
+    UNION ALL
+
+    -- Sales to Mulot/Other Customers
+    SELECT 
+        'Sales to Mulot/Other' AS type,
+        ISNULL(SUM(s.quantity), 0),
+        'Mulot/Other',
+        ISNULL(SUM(s.total_price), 0)
+    FROM Sales s
+    WHERE CONVERT(DATE, s.sale_date) = @today AND s.customer NOT IN ('Brookside', 'Local') AND s.company_id = @company_id
+
+    UNION ALL
+
+    -- Variance ( Total Sales - Intake )
+    SELECT 
+        'Variance (Sales - Intake)' AS type,
+        ISNULL((SELECT SUM(s.quantity) FROM Sales s 
+                WHERE CONVERT(DATE, s.sale_date) = @today AND s.company_id = @company_id), 0)
+        - ISNULL((SELECT SUM(p.quantity) FROM Purchases p 
+                  WHERE CONVERT(DATE, p.createdAt) = @today AND p.company_id = @company_id), 0),
+        NULL,
+        NULL
+
+    UNION ALL
+
+    -- Cumulative Sales Total
+    SELECT 
+        'Cumulative Sales Total' AS type,
+        NULL,
+        NULL,
+        ISNULL(SUM(s.total_price), 0)
+    FROM Sales s
+    WHERE CONVERT(DATE, s.sale_date) = @today AND s.company_id = @company_id
+    `;
+
+				title = "Daily Milk Summary Report";
+				headers = ["Type", "Quantity (Liters)", "Customer", "Total (KES)"];
+				break;
+
 			case "sales":
 				query = `
 		SELECT 
@@ -466,6 +551,43 @@ router.get("/:type", authenticateUser, async (req, res) => {
 				//label: "Total Sales Made",
 				//value: `KES ${totalProductsValue.toFixed(2)}`,
 				//},
+			];
+		}
+
+		if (type === "daily-report") {
+			const purchaseQty =
+				result.recordset.find((r) => r.type === "Total Purchases (Intake)")
+					?.quantity || 0;
+
+			const salesQty =
+				result.recordset.find((r) => r.type === "Total Sales (Liters)")
+					?.quantity || 0;
+
+			const brooksideSales =
+				result.recordset.find((r) => r.type === "Sales to Brookside")
+					?.total_price || 0;
+
+			const localSales =
+				result.recordset.find((r) => r.type === "Sales to Local Customers")
+					?.total_price || 0;
+
+			const cumulativeSales = brooksideSales + localSales;
+
+			const variance = salesQty - purchaseQty; // matches SQL calculation
+
+			summary = [
+				{ label: "Total Intake (Liters)", value: purchaseQty },
+				{ label: "Total Sales (Liters)", value: salesQty },
+				{ label: "Brookside Sales", value: `KES ${brooksideSales.toFixed(2)}` },
+				{ label: "Local Sales", value: `KES ${localSales.toFixed(2)}` },
+				{
+					label: "Cumulative Sales",
+					value: `KES ${cumulativeSales.toFixed(2)}`,
+				},
+				{
+					label: "Variance (Sales - Intake)",
+					value: `${variance.toFixed(2)} Liters`,
+				},
 			];
 		}
 

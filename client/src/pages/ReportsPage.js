@@ -154,6 +154,17 @@ const ReportsPage = () => {
 			const workbook = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(workbook, worksheet, `${reportType}_Report`);
 
+			if (reportType === "daily-report") {
+				worksheet["!cols"] = [
+					{ wch: 15 }, // Date
+					{ wch: 20 }, // Intake
+					{ wch: 25 }, // Brookside Sales
+					{ wch: 25 }, // Local Sales
+					{ wch: 25 }, // Cumulative Sales
+					{ wch: 20 }, // Variance
+				];
+			}
+
 			XLSX.writeFile(workbook, `${reportType}_report.xlsx`);
 			console.log("✅ Excel file downloaded successfully!");
 		} catch (error) {
@@ -170,17 +181,25 @@ const ReportsPage = () => {
 
 			{/* Report Type Selector */}
 			<Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-				{["sales", "products", "expenses", "stock", "suppliers", "users"].map(
-					(type) => (
-						<Button
-							key={type}
-							variant={reportType === type ? "contained" : "outlined"}
-							onClick={() => setReportType(type)}
-						>
-							{type.charAt(0).toUpperCase() + type.slice(1)}
-						</Button>
-					)
-				)}
+				{[
+					"daily-report",
+					"sales",
+					"products",
+					"expenses",
+					"stock",
+					"suppliers",
+					"users",
+				].map((type) => (
+					<Button
+						key={type}
+						variant={reportType === type ? "contained" : "outlined"}
+						onClick={() => setReportType(type)}
+					>
+						{type === "daily-report"
+							? "Daily Summary"
+							: type.charAt(0).toUpperCase() + type.slice(1)}
+					</Button>
+				))}
 			</Box>
 			{/* ✅ Filter Selector */}
 			<Typography variant='h6' sx={{ mt: 2, mb: 1 }}>
@@ -239,14 +258,14 @@ const ReportsPage = () => {
 
 			{/* Download Buttons */}
 			<Box sx={{ mt: 3, display: "flex", gap: 2 }}>
-				<Button
+				{/*<Button
 					variant='contained'
 					color='secondary'
 					startIcon={<CloudDownloadIcon />}
 					onClick={downloadPDF}
 				>
 					Download PDF Report
-				</Button>
+				</Button>*/}
 				<Button
 					variant='contained'
 					color='success'
