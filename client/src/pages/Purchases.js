@@ -665,6 +665,7 @@ const Purchases = () => {
 					<PurchaseReceipt
 						purchase={receiptData}
 						user={loggedInUser}
+						purchases={purchases}
 						onClose={() => setOpenReceipt(false)}
 					/>
 				)}
