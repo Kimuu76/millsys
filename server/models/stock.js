@@ -18,6 +18,16 @@ const createStockTable = async () => {
                 FOREIGN KEY (company_id) REFERENCES Companies(id) ON DELETE CASCADE
             )
         `);
+
+		await pool.query(`IF NOT EXISTS (
+	SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+	WHERE TABLE_NAME = 'Stock' AND COLUMN_NAME = 'supplier_id'
+)
+BEGIN
+	ALTER TABLE Stock ADD supplier_id INT;
+END
+`);
+
 		console.log("✅ Stock table checked/created.");
 	} catch (error) {
 		console.error("❌ Error creating Stock table:", error);

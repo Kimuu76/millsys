@@ -11,14 +11,17 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "africastalking": "^0.7.3",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.2",
     "mssql": "^11.0.1",
+    "node-cron": "^4.1.0",
     "pdfkit": "^0.16.0",
+    "twilio": "^5.7.0",
     "xlsx": "^0.18.5"
   }
 }

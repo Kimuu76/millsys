@@ -5,6 +5,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const sql = require("mssql");
 require("dotenv").config();
+require("./jobs/sendDailySMS");
 //console.log("DB Config:", process.env.DB_PORT);
 const { createSuperAdminTable } = require("./models/superadmin");
 const { createUserTable } = require("./models/user");
@@ -21,6 +22,7 @@ const {
 	insertSystemLog,
 } = require("./models/systemLogs");
 const { createExpensesTable } = require("./models/expenses");
+const { setupWeeklyDeliveries } = require("./models/setupWeeklyDeliveries");
 const {
 	authenticateUser,
 	authorizeRole,
@@ -63,6 +65,7 @@ app.use(express.json());
 	await createPendingDeletionsTable();
 	await createSystemLogsTable();
 	await createExpensesTable();
+	await setupWeeklyDeliveries();
 })();
 
 app.post("/api/log-action", authenticateUser, async (req, res) => {
