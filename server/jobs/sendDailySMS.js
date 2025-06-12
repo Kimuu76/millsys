@@ -76,6 +76,17 @@ cron.schedule("0 18 * * *", async () => {
 				continue;
 			}
 
+			function calculateDeductionByAmount(amount) {
+				if (amount <= 100) return 0;
+				if (amount <= 500) return 10;
+				if (amount <= 1000) return 20;
+				if (amount <= 2000) return 30;
+				if (amount <= 4000) return 40;
+				if (amount <= 5000) return 50;
+				if (amount <= 9999) return 60;
+				return 100;
+			}
+
 			// Build message
 			let totalQty = 0,
 				breakdown = "",
@@ -89,7 +100,7 @@ cron.schedule("0 18 * * *", async () => {
 			}
 
 			const gross = totalQty * rate;
-			const deduction = gross * 0.05;
+			const deduction = calculateDeductionByAmount(gross);
 			const net = gross - deduction;
 
 			const message =
@@ -98,8 +109,8 @@ cron.schedule("0 18 * * *", async () => {
 				`Product: ${product}\n` +
 				`${breakdown}Total: ${totalQty}L\n` +
 				`Rate: ${rate.toFixed(2)} KES/L\n` +
-				`Gross: ${gross.toFixed(2)} KES\n` +
-				`Deduction (5%): ${deduction.toFixed(2)} KES\n` +
+				`Total Amount: ${gross.toFixed(2)} KES\n` +
+				`Deduction : ${deduction.toFixed(2)} KES\n` +
 				`Net Pay: ${net.toFixed(2)} KES\n` +
 				`Thank you ${name}!`;
 
