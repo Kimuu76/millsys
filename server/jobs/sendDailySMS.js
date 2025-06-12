@@ -116,10 +116,102 @@ cron.schedule("0 18 * * 6", async () => {
 
 			const smsResult = await sendSMS(phone, message);
 			if (smsResult?.statusCode !== 100) {
-				console.warn(`⚠️ SMS not delivered to ${phone}: ${smsResult.status}`);
+				console.warn(`⚠️ SMS not delivered to ${phone}: ${smsResult?.status}`);
+
+				// Log only if reason is 'UserInBlacklist'
+				if (smsResult?.status === "UserInBlacklist") {
+					try {
+						await pool
+							.request()
+							.input("supplier_id", sql.Int, supplierId)
+							.input("phone", sql.NVarChar(100), phone)
+							.input("message", sql.NVarChar(sql.MAX), message)
+							.input("error", sql.NVarChar(255), smsResult.status).query(`
+					INSERT INTO DNDLogs (supplier_id, phone, message, error)
+					VALUES (@supplier_id, @phone, @message, @error)
+				`);
+						console.log(`📵 DND logged for ${phone}`);
+					} catch (logError) {
+						console.error(
+							`❌ Failed to log DND for ${phone}:`,
+							logError.message
+						);
+					}
+				}
 			} else {
 				console.log(`✅ SMS sent to ${phone} about ${product}`);
 			}
+		}
+
+		const ADMIN_PHONE = "+254731396922";
+
+		// 📅 Get current week's Sunday to Saturday
+		const weekStart = new Date();
+		weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
+		const weekEnd = new Date(weekStart);
+		weekEnd.setDate(weekEnd.getDate() + 6); // Saturday
+
+		const startStr = weekStart.toISOString().split("T")[0];
+		const endStr = weekEnd.toISOString().split("T")[0];
+
+		// 🧾 Fetch total suppliers & milk delivered
+		const totals = await pool.request().query(`
+	SELECT 
+		COUNT(DISTINCT supplier_id) AS supplierCount,
+		SUM(quantity) AS totalLitres
+	FROM Purchases
+	WHERE CAST(createdAt AS DATE) BETWEEN '${startStr}' AND '${endStr}'
+`);
+
+		const { supplierCount, totalLitres } = totals.recordset[0] || {};
+
+		// 💵 Fetch total paid out (after deductions already accounted earlier)
+		const totalAmountRow = await pool.request().query(`
+	SELECT 
+		SUM(p.quantity * s.purchase_price) AS gross
+	FROM Purchases p
+	JOIN Stock s ON p.product_name = s.product_name AND p.company_id = s.company_id
+	WHERE CAST(p.createdAt AS DATE) BETWEEN '${startStr}' AND '${endStr}'
+`);
+
+		let gross = totalAmountRow.recordset[0]?.gross || 0;
+
+		// 💸 Deduct using the tiers (same tier logic reused)
+		let deduction = 0;
+		if (gross <= 100) deduction = 0;
+		else if (gross <= 500) deduction = 10;
+		else if (gross <= 1000) deduction = 20;
+		else if (gross <= 2000) deduction = 30;
+		else if (gross <= 4000) deduction = 40;
+		else if (gross <= 5000) deduction = 50;
+		else if (gross <= 9999) deduction = 60;
+		else deduction = 100;
+
+		const net = gross - deduction;
+
+		// 🚫 Count DNDs this week
+		const dndResult = await pool.request().query(`
+	SELECT COUNT(*) AS dndCount 
+	FROM DNDLogs 
+	WHERE logged_at BETWEEN '${startStr}' AND '${endStr}'
+`);
+
+		const dndCount = dndResult.recordset[0]?.dndCount || 0;
+
+		// ✉️ Send summary SMS to admin
+		const summaryMsg = `📊 Kertai Choronok Milk Center Weekly Summary
+🗓️ Week: ${startStr} to ${endStr}
+👥 Farmers: ${supplierCount}
+🥛 Total Milk: ${totalLitres || 0} L
+💰 Paid: KES ${net.toFixed(2)}
+📵 DND (not reached): ${dndCount}`;
+
+		const adminSmsResult = await sendSMS(ADMIN_PHONE, summaryMsg);
+
+		if (adminSmsResult?.statusCode === 100) {
+			console.log(`✅ Summary sent to admin (${ADMIN_PHONE})`);
+		} else {
+			console.warn(`⚠️ Summary SMS failed: ${adminSmsResult?.status}`);
 		}
 
 		console.log("✅ Weekly SMS job completed.");

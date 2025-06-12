@@ -23,6 +23,7 @@ const {
 } = require("./models/systemLogs");
 const { createExpensesTable } = require("./models/expenses");
 const { setupWeeklyDeliveries } = require("./models/setupWeeklyDeliveries");
+const { createDNDLogsTable } = require("./models/dndLogModel");
 const {
 	authenticateUser,
 	authorizeRole,
@@ -66,6 +67,7 @@ app.use(express.json());
 	await createSystemLogsTable();
 	await createExpensesTable();
 	await setupWeeklyDeliveries();
+	await createDNDLogsTable();
 })();
 
 app.post("/api/log-action", authenticateUser, async (req, res) => {
