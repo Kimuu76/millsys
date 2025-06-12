@@ -4,8 +4,8 @@ const cron = require("node-cron");
 const { sql, dbConfig } = require("../models/db");
 const sendSMS = require("../utilis/africasTalkingSMS");
 
-// Run daily at 6 PM
-cron.schedule("0 18 * * *", async () => {
+// Run every saturday at 6 PM
+cron.schedule("0 18 * * 6", async () => {
 	console.log("🕕 Running daily SMS job...");
 
 	try {
@@ -110,7 +110,7 @@ cron.schedule("0 18 * * *", async () => {
 				`${breakdown}Total: ${totalQty}L\n` +
 				`Rate: ${rate.toFixed(2)} KES/L\n` +
 				`Total Amount: ${gross.toFixed(2)} KES\n` +
-				`Deduction : ${deduction.toFixed(2)} KES\n` +
+				`Charges : ${deduction.toFixed(2)} KES\n` +
 				`Net Pay: ${net.toFixed(2)} KES\n` +
 				`Thank you ${name}!`;
 
