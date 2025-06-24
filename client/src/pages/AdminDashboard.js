@@ -75,6 +75,7 @@ const AdminDashboard = () => {
 	const [chartData, setChartData] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [viewMode, setViewMode] = useState("daily");
 
 	// Fetch dashboard data from backend
 	useEffect(() => {
@@ -97,7 +98,34 @@ const AdminDashboard = () => {
 
 				const data = await response.json();
 				setStats(data);
-				setChartData(data.salesData || []);
+				const dayNumberMap = {
+					Sunday: "Sunday (Day 1)",
+					Monday: "Monday (Day 2)",
+					Tuesday: "Tuesday (Day 3)",
+					Wednesday: "Wednesday (Day 4)",
+					Thursday: "Thursday (Day 5)",
+					Friday: "Friday (Day 6)",
+					Saturday: "Saturday (Day 7)",
+				};
+
+				/*const labeledChartData = (data.salesData || []).map((item) => ({
+					...item,
+					day: dayNumberMap[item.day] || item.day,
+				}));
+
+				setChartData(labeledChartData);*/
+
+				const dailyData = (data.dailyChartData || []).map((item) => ({
+					...item,
+					day: dayNumberMap[item.day] || item.day,
+				}));
+
+				setChartData({
+					daily: dailyData,
+					monthly: data.monthlyChartData || [],
+				});
+
+				//setChartData(data.salesData || []);
 				setLoading(false);
 			} catch (error) {
 				console.error("Error fetching dashboard data:", error);
@@ -241,14 +269,50 @@ const AdminDashboard = () => {
 			{/* Sales & Purchases Chart */}
 			<ChartContainer>
 				<h3>Sales & Purchases Overview</h3>
+				<div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+					<Button
+						variant={viewMode === "daily" ? "contained" : "outlined"}
+						color='primary'
+						onClick={() => setViewMode("daily")}
+					>
+						Daily
+					</Button>
+					<Button
+						variant={viewMode === "monthly" ? "contained" : "outlined"}
+						color='primary'
+						onClick={() => setViewMode("monthly")}
+					>
+						Monthly
+					</Button>
+				</div>
+
 				<ResponsiveContainer width='100%' height={300}>
-					<BarChart data={chartData}>
-						<XAxis dataKey='month' />
+					<BarChart data={chartData[viewMode]}>
+						<XAxis
+							dataKey={viewMode === "daily" ? "day" : "month"}
+							label={{
+								value: viewMode === "daily" ? "Day of Week" : "Month",
+								position: "insideBottom",
+								offset: -5,
+							}}
+						/>
+
+						{/*<XAxis
+							dataKey='day'
+							label={{
+								value: "Day of Week (Sunday–Saturday)",
+								position: "insideBottom",
+								offset: -5,
+							}}
+						/>*/}
+
 						<YAxis />
 						<Tooltip />
 						<Legend />
 						<Bar dataKey='sales' fill='#007bff' name='Sales' />
 						<Bar dataKey='purchases' fill='#ff5733' name='Purchases' />
+						<Bar dataKey='expenses' fill='#ffc107' name='Expenses' />
+						{/*<Bar dataKey='profit' fill='#28a745' name='Profit' />*/}
 					</BarChart>
 				</ResponsiveContainer>
 			</ChartContainer>
