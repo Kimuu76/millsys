@@ -1,7 +1,9 @@
 /** @format */
 
-const sendSMS = require("./utilis/africasTalkingSMS");
+// testSMS.js
+const sendSMS = require("./utilis/bookoneSMS"); // adjust path if needed
 
 (async () => {
-	await sendSMS("+254712992577", "Hello, this is a one-time live test!");
+	const result = await sendSMS("254712992577", "Hello from KOSOITA MILK!");
+	console.log("SMS Result:", result);
 })();

@@ -2,7 +2,7 @@
 
 const cron = require("node-cron");
 const { sql, dbConfig } = require("../models/db");
-const sendSMS = require("../utilis/africasTalkingSMS");
+const sendSMS = require("../utilis/bookoneSMS");
 
 // Run every saturday at 6 PM
 cron.schedule("0 18 * * 6", async () => {
@@ -143,7 +143,7 @@ cron.schedule("0 18 * * 6", async () => {
 			}
 		}
 
-		const ADMIN_PHONE = "+254731396922";
+		const ADMIN_PHONE = "+254720369014";
 
 		// 📅 Get current week's Sunday to Saturday
 		const weekStart = new Date();
