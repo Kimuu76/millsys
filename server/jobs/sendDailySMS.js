@@ -2,9 +2,18 @@
 
 const cron = require("node-cron");
 const { sql, dbConfig } = require("../models/db");
-const sendSMS = require("../utilis/bookoneSMS");
+const { sendSMS, normalizePhoneNumber } = require("../utilis/bookoneSMS");
 
-// Run every saturday at 6 PM
+// 📅 Format date as dd/mm/yyyy
+function formatDate(date) {
+	const d = new Date(date);
+	const day = String(d.getDate()).padStart(2, "0");
+	const month = String(d.getMonth() + 1).padStart(2, "0");
+	const year = d.getFullYear();
+	return `${day}/${month}/${year}`;
+}
+
+// Run every minute (adjust to real schedule)
 cron.schedule("0 18 * * 6", async () => {
 	console.log("🕕 Running daily SMS job...");
 
@@ -14,14 +23,20 @@ cron.schedule("0 18 * * 6", async () => {
 		const dayOfWeek = today.getDay(); // 0 = Sunday
 		const sunday = new Date(today);
 		sunday.setDate(today.getDate() - dayOfWeek);
-		const sundayStr = sunday.toISOString().split("T")[0];
-		const todayStr = today.toISOString().split("T")[0];
+
+		// ⏳ For SQL filters (ISO format)
+		const isoSundayStr = sunday.toISOString().split("T")[0];
+		const isoTodayStr = today.toISOString().split("T")[0];
+
+		// 🗓️ For SMS message (dd/mm/yyyy)
+		const smsSundayStr = formatDate(sunday);
+		const smsTodayStr = formatDate(today);
 
 		// 1. Fetch per-supplier, per-product daily quantities
 		const deliveries = await pool
 			.request()
-			.input("weekStart", sql.Date, sundayStr)
-			.input("today", sql.Date, todayStr).query(`
+			.input("weekStart", sql.Date, isoSundayStr)
+			.input("today", sql.Date, isoTodayStr).query(`
         SELECT s.id AS supplierId, s.name, s.contact AS phoneNumber,
                p.product_name, 
                CONVERT(varchar(10), CAST(p.createdAt AS date), 23) AS deliveryDate,
@@ -32,12 +47,12 @@ cron.schedule("0 18 * * 6", async () => {
         GROUP BY s.id, s.name, s.contact, p.product_name, CAST(p.createdAt AS DATE);
       `);
 
-		// 2. Organize deliveries by supplier and product
+		// 2. Organize deliveries
 		const supMap = {};
 		const days = [...Array(7)].map((_, i) => {
 			const d = new Date(sunday);
 			d.setDate(sunday.getDate() + i);
-			return d.toISOString().split("T")[0];
+			return d.toISOString().split("T")[0]; // use ISO for lookup
 		});
 
 		deliveries.recordset.forEach((row) => {
@@ -52,7 +67,7 @@ cron.schedule("0 18 * * 6", async () => {
 			supMap[key].daily[row.deliveryDate] = Number(row.quantity);
 		});
 
-		// 3. Send SMS per supplier-product group
+		// 3. Send SMS per supplier-product
 		for (const entry of Object.values(supMap)) {
 			const { supplierId, name, phone, product, daily } = entry;
 			if (!phone.startsWith("+254")) {
@@ -60,15 +75,14 @@ cron.schedule("0 18 * * 6", async () => {
 				continue;
 			}
 
-			// Fetch this product’s latest purchase_price for this supplier
 			const stockRes = await pool
 				.request()
 				.input("product", sql.NVarChar, product).query(`
-    SELECT TOP 1 purchase_price
-    FROM Stock
-    WHERE product_name = @product
-    ORDER BY added_at DESC;
-  `);
+					SELECT TOP 1 purchase_price
+					FROM Stock
+					WHERE product_name = @product
+					ORDER BY added_at DESC;
+				`);
 
 			const rate = stockRes.recordset[0]?.purchase_price;
 			if (rate == null) {
@@ -87,16 +101,25 @@ cron.schedule("0 18 * * 6", async () => {
 				return 100;
 			}
 
-			// Build message
 			let totalQty = 0,
-				breakdown = "",
-				day = 1;
-			for (const date of days) {
-				if (date > todayStr) break;
+				breakdown = "";
+			const weekdayLabels = [
+				"Sunday",
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday",
+				"Saturday",
+			];
+
+			for (let i = 0; i < days.length && days[i] <= isoTodayStr; i++) {
+				const date = days[i];
 				const qty = daily[date] || 0;
 				totalQty += qty;
-				breakdown += `DAY ${day}: ${qty}L\n`;
-				day++;
+
+				const formattedDate = formatDate(date);
+				breakdown += `DAY ${i + 1} (${weekdayLabels[i]} ): ${qty}L\n`;
 			}
 
 			const gross = totalQty * rate;
@@ -104,21 +127,22 @@ cron.schedule("0 18 * * 6", async () => {
 			const net = gross - deduction;
 
 			const message =
-				`Kertai Choronok Milk Center\n` +
-				`Week: ${sundayStr} To ${todayStr}\n` +
+				`Kertai Milk Records from:\n` +
+				`Week: ${smsSundayStr} To ${smsTodayStr}\n` +
 				`Product: ${product}\n` +
 				`${breakdown}Total: ${totalQty}L\n` +
 				`Rate: ${rate.toFixed(2)} KES/L\n` +
 				`Total Amount: ${gross.toFixed(2)} KES\n` +
 				`Charges : ${deduction.toFixed(2)} KES\n` +
 				`Net Pay: ${net.toFixed(2)} KES\n` +
-				`Thank you ${name}!`;
+				`By Management: 0720369014`;
 
 			const smsResult = await sendSMS(phone, message);
 			if (smsResult?.statusCode !== 100) {
-				console.warn(`⚠️ SMS not delivered to ${phone}: ${smsResult?.status}`);
+				console.warn(
+					`⚠️ SMS not delivered to ${phone}. Status code: ${smsResult?.status}`
+				);
 
-				// Log only if reason is 'UserInBlacklist'
 				if (smsResult?.status === "UserInBlacklist") {
 					try {
 						await pool
@@ -127,9 +151,9 @@ cron.schedule("0 18 * * 6", async () => {
 							.input("phone", sql.NVarChar(100), phone)
 							.input("message", sql.NVarChar(sql.MAX), message)
 							.input("error", sql.NVarChar(255), smsResult.status).query(`
-					INSERT INTO DNDLogs (supplier_id, phone, message, error)
-					VALUES (@supplier_id, @phone, @message, @error)
-				`);
+								INSERT INTO DNDLogs (supplier_id, phone, message, error)
+								VALUES (@supplier_id, @phone, @message, @error)
+							`);
 						console.log(`📵 DND logged for ${phone}`);
 					} catch (logError) {
 						console.error(
@@ -143,62 +167,121 @@ cron.schedule("0 18 * * 6", async () => {
 			}
 		}
 
-		const ADMIN_PHONE = "+254720369014";
+		// ADMIN DAILY REPORT
+		const ADMIN_PHONE = "254712992577";
 
-		// 📅 Get current week's Sunday to Saturday
+		const dailyReportRes = await pool.request().query(`
+			SELECT 
+				'Total Purchases (Intake)' AS type, SUM(quantity) AS quantity, NULL AS total_price
+			FROM Purchases
+			WHERE CAST(createdAt AS DATE) = '${isoTodayStr}'
+			UNION
+			SELECT 'Total Sales (Liters)', SUM(quantity), NULL
+			FROM Sales
+			WHERE CAST(sale_date AS DATE) = '${isoTodayStr}'
+			UNION
+			SELECT 'Sales to Brookside', NULL, SUM(total_price)
+			FROM Sales
+			WHERE customer = 'Brookside' AND CAST(sale_date AS DATE) = '${isoTodayStr}'
+			UNION
+			SELECT 'Sales to Local Customers', NULL, SUM(total_price)
+			FROM Sales
+			WHERE customer = 'Local' AND CAST(sale_date AS DATE) = '${isoTodayStr}'
+		`);
+
+		const purchaseQty =
+			dailyReportRes.recordset.find(
+				(r) => r.type === "Total Purchases (Intake)"
+			)?.quantity || 0;
+		const salesQty =
+			dailyReportRes.recordset.find((r) => r.type === "Total Sales (Liters)")
+				?.quantity || 0;
+		const brooksideSales =
+			dailyReportRes.recordset.find((r) => r.type === "Sales to Brookside")
+				?.total_price || 0;
+		const localSales =
+			dailyReportRes.recordset.find(
+				(r) => r.type === "Sales to Local Customers"
+			)?.total_price || 0;
+
+		const cumulativeSales = brooksideSales + localSales;
+		const variance = salesQty - purchaseQty;
+
+		const summary = [
+			{ label: "Total Intake (Liters)", value: purchaseQty },
+			{ label: "Total Sales (Liters)", value: salesQty },
+			{ label: "Brookside Sales", value: `KES ${brooksideSales.toFixed(2)}` },
+			{ label: "Local Sales", value: `KES ${localSales.toFixed(2)}` },
+			{ label: "Cumulative Sales", value: `KES ${cumulativeSales.toFixed(2)}` },
+			{
+				label: "Variance (Sales - Intake)",
+				value: `${variance.toFixed(2)} Liters`,
+			},
+		];
+
+		const dailyMessage =
+			`📊 *Daily Report Summary (${smsTodayStr})*\n----------------------------\n` +
+			summary
+				.map((item) => {
+					const emoji = item.label.toLowerCase().includes("variance")
+						? "⚠️"
+						: item.label.toLowerCase().includes("sales")
+						? "💰"
+						: "✅";
+					return `${emoji} *${item.label}*: ${item.value}`;
+				})
+				.join("\n");
+
+		const dailySmsResult = await sendSMS(ADMIN_PHONE, dailyMessage);
+
+		if (dailySmsResult?.statusCode === 100) {
+			console.log(`✅ Daily summary sent to admin (${ADMIN_PHONE})`);
+		} else {
+			console.warn(`⚠️ Daily summary SMS failed: ${dailySmsResult?.status}`);
+			console.warn("🔍 SMS Response:", dailySmsResult);
+		}
+
+		// WEEKLY SUMMARY SMS
 		const weekStart = new Date();
-		weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
+		weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 		const weekEnd = new Date(weekStart);
-		weekEnd.setDate(weekEnd.getDate() + 6); // Saturday
+		weekEnd.setDate(weekEnd.getDate() + 6);
 
-		const startStr = weekStart.toISOString().split("T")[0];
-		const endStr = weekEnd.toISOString().split("T")[0];
+		const startStr = formatDate(weekStart);
+		const endStr = formatDate(weekEnd);
+		const isoWeekStart = weekStart.toISOString().split("T")[0];
+		const isoWeekEnd = weekEnd.toISOString().split("T")[0];
 
-		// 🧾 Fetch total suppliers & milk delivered
 		const totals = await pool.request().query(`
-	SELECT 
-		COUNT(DISTINCT supplier_id) AS supplierCount,
-		SUM(quantity) AS totalLitres
-	FROM Purchases
-	WHERE CAST(createdAt AS DATE) BETWEEN '${startStr}' AND '${endStr}'
-`);
+			SELECT 
+				COUNT(DISTINCT supplier_id) AS supplierCount,
+				SUM(quantity) AS totalLitres
+			FROM Purchases
+			WHERE CAST(createdAt AS DATE) BETWEEN '${isoWeekStart}' AND '${isoWeekEnd}'
+		`);
 
 		const { supplierCount, totalLitres } = totals.recordset[0] || {};
 
-		// 💵 Fetch total paid out (after deductions already accounted earlier)
 		const totalAmountRow = await pool.request().query(`
-	SELECT 
-		SUM(p.quantity * s.purchase_price) AS gross
-	FROM Purchases p
-	JOIN Stock s ON p.product_name = s.product_name AND p.company_id = s.company_id
-	WHERE CAST(p.createdAt AS DATE) BETWEEN '${startStr}' AND '${endStr}'
-`);
+			SELECT 
+				SUM(p.quantity * s.purchase_price) AS gross
+			FROM Purchases p
+			JOIN Stock s ON p.product_name = s.product_name AND p.company_id = s.company_id
+			WHERE CAST(p.createdAt AS DATE) BETWEEN '${isoWeekStart}' AND '${isoWeekEnd}'
+		`);
 
 		let gross = totalAmountRow.recordset[0]?.gross || 0;
+		let deduction = calculateDeductionByAmount(gross);
+		let net = gross - deduction;
 
-		// 💸 Deduct using the tiers (same tier logic reused)
-		let deduction = 0;
-		if (gross <= 100) deduction = 0;
-		else if (gross <= 500) deduction = 10;
-		else if (gross <= 1000) deduction = 20;
-		else if (gross <= 2000) deduction = 30;
-		else if (gross <= 4000) deduction = 40;
-		else if (gross <= 5000) deduction = 50;
-		else if (gross <= 9999) deduction = 60;
-		else deduction = 100;
-
-		const net = gross - deduction;
-
-		// 🚫 Count DNDs this week
 		const dndResult = await pool.request().query(`
-	SELECT COUNT(*) AS dndCount 
-	FROM DNDLogs 
-	WHERE logged_at BETWEEN '${startStr}' AND '${endStr}'
-`);
+			SELECT COUNT(*) AS dndCount 
+			FROM DNDLogs 
+			WHERE logged_at BETWEEN '${isoWeekStart}' AND '${isoWeekEnd}'
+		`);
 
 		const dndCount = dndResult.recordset[0]?.dndCount || 0;
 
-		// ✉️ Send summary SMS to admin
 		const summaryMsg = `📊 Kertai Choronok Milk Center Weekly Summary
 🗓️ Week: ${startStr} to ${endStr}
 👥 Farmers: ${supplierCount}
@@ -212,6 +295,7 @@ cron.schedule("0 18 * * 6", async () => {
 			console.log(`✅ Summary sent to admin (${ADMIN_PHONE})`);
 		} else {
 			console.warn(`⚠️ Summary SMS failed: ${adminSmsResult?.status}`);
+			console.warn("🔍 SMS Response:", adminSmsResult);
 		}
 
 		console.log("✅ Weekly SMS job completed.");
@@ -219,215 +303,3 @@ cron.schedule("0 18 * * 6", async () => {
 		console.error("❌ Error in SMS job:", err.message || err);
 	}
 });
-
-/** @format 
-
-const cron = require("node-cron");
-const { sql, dbConfig } = require("../models/db");
-const sendSMS = require("../utilis/africasTalkingSMS");
-
-// Run daily at 6 PM
-cron.schedule("* * * * *", async () => {
-	console.log("🕕 Running daily SMS job...");
-
-	try {
-		const pool = await sql.connect(dbConfig);
-		const today = new Date();
-
-		// Get the most recent Sunday (start of the week)
-		const dayOfWeek = today.getDay(); // 0 = Sunday
-		const sunday = new Date(today);
-		sunday.setDate(today.getDate() - dayOfWeek); // Sunday this week
-
-		const sundayStr = sunday.toISOString().split("T")[0];
-		const todayStr = today.toISOString().split("T")[0];
-
-		const result = await pool
-			.request()
-			.input("weekStart", sql.Date, sundayStr)
-			.input("today", sql.Date, todayStr).query(`
-				SELECT 
-					s.id AS supplierId,
-					s.name,
-					s.contact AS phoneNumber,
-					CONVERT(varchar(10), CAST(p.createdAt AS date), 23) AS deliveryDate,
-					SUM(p.quantity) AS quantity,
-					AVG(st.purchase_price) AS avgPrice
-				FROM Purchases p
-				JOIN Suppliers s ON p.supplier_id = s.id
-				JOIN Stock st ON p.product_name = st.product_name
-				WHERE CAST(p.createdAt AS DATE) BETWEEN @weekStart AND @today
-				GROUP BY s.id, s.name, s.contact, CAST(p.createdAt AS DATE);
-			`);
-
-		const days = [...Array(7)].map((_, i) => {
-			const d = new Date(sunday);
-			d.setDate(sunday.getDate() + i);
-			return d.toISOString().split("T")[0];
-		});
-
-		const grouped = result.recordset.reduce((acc, row) => {
-			const key = row.supplierId;
-			acc[key] = acc[key] || {
-				name: row.name,
-				phone: row.phoneNumber.trim(),
-				daily: {},
-				avgPrice: row.avgPrice,
-			};
-			acc[key].daily[row.deliveryDate] = row.quantity;
-			return acc;
-		}, {});
-
-		for (const supplier of Object.values(grouped)) {
-			const { name, phone, daily, avgPrice } = supplier;
-			if (!phone.startsWith("+254")) {
-				console.warn(`⚠️ Invalid phone skipped: ${phone}`);
-				continue;
-			}
-
-			let totalQty = 0;
-			let breakdown = "";
-			let dayCounter = 1;
-
-			for (let i = 0; i < days.length && days[i] <= todayStr; i++) {
-				const date = days[i];
-				const qty = Number(daily[date] || 0);
-				totalQty += qty;
-				breakdown += `DAY ${dayCounter}: ${qty}L\n`;
-				dayCounter++;
-			}
-
-			const rate = avgPrice || 0;
-			const gross = totalQty * rate;
-			const deduction = gross * 0.05; // Adjust if needed
-			const net = gross - deduction;
-
-			const message = `Kertai Choronok Milk Center
-Week ${sundayStr} To ${todayStr}
-${breakdown.trim()}
-Total: ${totalQty}L
-Rate: ${rate.toFixed(2)}
-Gross: ${gross.toFixed(2)} KES
-Deduction: ${deduction.toFixed(2)} KES
-Net Pay: ${net.toFixed(2)} KES
-Thank you ${name}!`;
-
-			const smsResult = await sendSMS(phone, message);
-
-			if (smsResult?.statusCode !== 100) {
-				console.warn(`⚠️ SMS not delivered to ${phone}: ${smsResult.status}`);
-			} else {
-				console.log(`✅ SMS sent to ${phone}`);
-			}
-		}
-
-		console.log("✅ Weekly SMS job completed.");
-	} catch (error) {
-		console.error("❌ Error in SMS job:", error.message || error);
-	}
-});
-
-/** @format 
-
-const cron = require("node-cron");
-const { sql, dbConfig } = require("../models/db");
-const sendSMS = require("../utilis/africasTalkingSMS");
-
-// Run daily at 6 PM
-cron.schedule("* * * * *", async () => {
-	console.log("🕕 Running daily supplier SMS job...");
-
-	try {
-		const pool = await sql.connect(dbConfig);
-
-		const today = new Date();
-		const weekStart = new Date(today);
-		weekStart.setDate(today.getDate() - today.getDay()); // Sunday as week start
-		const weekStartDate = weekStart.toISOString().split("T")[0]; // format: YYYY-MM-DD
-
-		const result = await pool.request().query(`
-      SELECT 
-        s.id AS supplierId,
-        s.name,
-        s.contact AS phoneNumber,
-        SUM(p.quantity) AS dailyQuantity
-      FROM Purchases p
-      JOIN Suppliers s ON p.supplier_id = s.id
-      WHERE CAST(p.createdAt AS DATE) = CAST(GETDATE() AS DATE)
-      GROUP BY s.id, s.name, s.contact
-    `);
-
-		if (result.recordset.length === 0) {
-			console.log("📭 No deliveries recorded today.");
-			return;
-		}
-
-		for (const row of result.recordset) {
-			let { supplierId, name, phoneNumber, dailyQuantity } = row;
-			phoneNumber = phoneNumber.trim();
-
-			if (!phoneNumber.startsWith("+254")) {
-				console.warn(`⚠️ Skipping invalid phone: ${phoneNumber}`);
-				continue;
-			}
-
-			// ✅ Check if a record exists for this supplier for this week
-			const existing = await pool
-				.request()
-				.input("supplierId", sql.Int, supplierId)
-				.input("weekStart", sql.Date, weekStartDate).query(`
-          SELECT * FROM WeeklyDeliveries 
-          WHERE supplier_id = @supplierId AND week_start_date = @weekStart
-        `);
-
-			if (existing.recordset.length === 0) {
-				// Insert new record
-				await pool
-					.request()
-					.input("supplierId", sql.Int, supplierId)
-					.input("weekStart", sql.Date, weekStartDate)
-					.input("dailyQuantity", sql.Decimal(10, 2), dailyQuantity).query(`
-            INSERT INTO WeeklyDeliveries (supplier_id, week_start_date, total_quantity)
-            VALUES (@supplierId, @weekStart, @dailyQuantity)
-          `);
-			} else {
-				// Update existing
-				await pool
-					.request()
-					.input("supplierId", sql.Int, supplierId)
-					.input("weekStart", sql.Date, weekStartDate)
-					.input("dailyQuantity", sql.Decimal(10, 2), dailyQuantity).query(`
-            UPDATE WeeklyDeliveries 
-            SET total_quantity = total_quantity + @dailyQuantity
-            WHERE supplier_id = @supplierId AND week_start_date = @weekStart
-          `);
-			}
-
-			// ✅ Fetch updated weekly total
-			const { total_quantity } = (
-				await pool
-					.request()
-					.input("supplierId", sql.Int, supplierId)
-					.input("weekStart", sql.Date, weekStartDate).query(`
-            SELECT total_quantity FROM WeeklyDeliveries
-            WHERE supplier_id = @supplierId AND week_start_date = @weekStart
-          `)
-			).recordset[0];
-
-			// ✅ Friendly message
-			const message = `Hello ${name}, thank you for your delivery today of ${dailyQuantity} litres. So far this week, you've delivered ${total_quantity} litres. Keep it up!`;
-
-			const smsResult = await sendSMS(phoneNumber, message);
-
-			if (smsResult?.statusCode !== 100) {
-				console.warn(
-					`⚠️ SMS not delivered to ${phoneNumber}: ${smsResult?.status}`
-				);
-			}
-		}
-
-		console.log("✅ Daily SMS job completed.");
-	} catch (error) {
-		console.error("❌ Error in SMS job:", error.message || error);
-	}
-});*/

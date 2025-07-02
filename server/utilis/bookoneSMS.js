@@ -3,12 +3,21 @@
 // utils/bookoneSMS.js
 const axios = require("axios");
 
+function normalizePhoneNumber(phone) {
+	phone = phone.trim();
+	if (phone.startsWith("+")) return phone.slice(1);
+	if (phone.startsWith("0")) return "254" + phone.slice(1);
+	return phone;
+}
+
 const sendSMS = async (mobile, message) => {
 	try {
+		const normalized = normalizePhoneNumber(mobile);
+
 		const response = await axios.post(
 			"https://sms.bookone.co.ke/api/sms/sendsms",
 			{
-				mobile: mobile.replace("+", ""),
+				mobile: normalized,
 				response_type: "json",
 				sender_name: "KOSOITAMILK",
 				service_id: 0,
@@ -40,4 +49,7 @@ const sendSMS = async (mobile, message) => {
 	}
 };
 
-module.exports = sendSMS;
+module.exports = {
+	sendSMS,
+	normalizePhoneNumber,
+};
