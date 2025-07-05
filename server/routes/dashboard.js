@@ -18,7 +18,7 @@ router.get("/", authenticateUser, async (req, res) => {
 			.query(`
 				DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 				DECLARE @WeekStart DATE = DATEADD(DAY, -DATEPART(WEEKDAY, @Today) + 1, @Today); -- Sunday
-				DECLARE @WeekEnd DATE = DATEADD(DAY, 6, @WeekStart); -- Saturday
+				DECLARE @WeekEnd DATE = DATEADD(DAY, 7, @WeekStart); -- Saturday
 
 				-- Weekly Totals
 				SELECT
