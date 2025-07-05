@@ -14,6 +14,7 @@ function formatDate(date) {
 }
 
 // Run every minute (adjust to real schedule)
+//cron.schedule("0 18 * * 6", async () => {
 cron.schedule("0 18 * * 6", async () => {
 	console.log("🕕 Running daily SMS job...");
 
