@@ -412,7 +412,7 @@ router.get("/:type", authenticateUser, async (req, res) => {
 					"Returned Quantity",
 				];
 				break;
-			case "suppliers":
+			/*case "suppliers":
 				query = `
 		SELECT 
 			s.id, 
@@ -439,6 +439,56 @@ router.get("/:type", authenticateUser, async (req, res) => {
 					"Address",
 					"Total Quantity",
 					"Avg Price (KES/L)",
+					"Total Amount (KES)",
+				];
+				break;*/
+
+			case "suppliers":
+				query = `
+						SELECT 
+							s.id, 
+							s.name, 
+							s.contact, 
+							s.address AS Category, 
+				
+							-- Quantities per day (Sunday = 1, ..., Saturday = 7)
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 1 THEN p.quantity ELSE 0 END), 0) AS D1,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 2 THEN p.quantity ELSE 0 END), 0) AS D2,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 3 THEN p.quantity ELSE 0 END), 0) AS D3,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 4 THEN p.quantity ELSE 0 END), 0) AS D4,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 5 THEN p.quantity ELSE 0 END), 0) AS D5,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 6 THEN p.quantity ELSE 0 END), 0) AS D6,
+							ISNULL(SUM(CASE WHEN DATEPART(WEEKDAY, p.createdAt) = 7 THEN p.quantity ELSE 0 END), 0) AS D7,
+				
+							ISNULL(SUM(p.quantity), 0) AS totals,
+							ISNULL(MAX(p.purchase_price), 0) AS Rate,
+							ISNULL(SUM(p.total), 0) AS total_amount
+				
+						FROM Suppliers s
+						LEFT JOIN Purchases p 
+							ON s.id = p.supplier_id 
+							AND p.company_id = @company_id
+							${getDateFilterQuery(filter, "p.createdAt")}
+						WHERE s.company_id = @company_id
+						GROUP BY s.id, s.name, s.contact, s.address
+						ORDER BY s.name
+					`;
+
+				title = "Suppliers/Farmers Report";
+				headers = [
+					"ID",
+					"Name",
+					"Contact",
+					"Category",
+					"D1 (Sun)",
+					"D2 (Mon)",
+					"D3 (Tue)",
+					"D4 (Wed)",
+					"D5 (Thu)",
+					"D6 (Fri)",
+					"D7 (Sat)",
+					"Totals",
+					"Rate (KES/L)",
 					"Total Amount (KES)",
 				];
 				break;
