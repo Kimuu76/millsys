@@ -5,19 +5,22 @@ const { sql, dbConfig } = require("../models/db");
 const { sendSMS, normalizePhoneNumber } = require("../utilis/bookoneSMS");
 
 // 📅 Format date as dd/mm/yyyy
-function formatDate(date) {
-	const d = new Date(date);
-	const day = String(d.getDate()).padStart(2, "0");
-	const month = String(d.getMonth() + 1).padStart(2, "0");
-	const year = d.getFullYear();
-	return `${day}/${month}/${year}`;
+function formatCompactDateRange(startDate, endDate) {
+	const startDay = String(startDate.getDate()).padStart(2, "0");
+	const endDay = String(endDate.getDate()).padStart(2, "0");
+	const yearSuffix = String(endDate.getFullYear()).slice(-3);
+	return `${startDay} to ${endDay}/${yearSuffix}`;
 }
 
 // Run every minute (adjust to real schedule)
-//cron.schedule("0 18 * * 6", async () => {
 cron.schedule(
 	"0 18 * * 6",
 	async () => {
+		{
+			/*cron.schedule(
+	"0 18 * * 6",
+	async () => {*/
+		}
 		console.log("🕕 Running daily SMS job...");
 		console.log(
 			"triggered at:",
@@ -36,8 +39,7 @@ cron.schedule(
 			const isoTodayStr = today.toISOString().split("T")[0];
 
 			// 🗓️ For SMS message (dd/mm/yyyy)
-			const smsSundayStr = formatDate(sunday);
-			const smsTodayStr = formatDate(today);
+			const smsDateRangeStr = formatCompactDateRange(sunday, today);
 
 			// 1. Fetch per-supplier, per-product daily quantities
 			const deliveries = await pool
@@ -110,25 +112,14 @@ cron.schedule(
 					return 100;
 				}
 
-				let totalQty = 0,
-					breakdown = "";
-				const weekdayLabels = [
-					"Sunday",
-					"Monday",
-					"Tuesday",
-					"Wednesday",
-					"Thursday",
-					"Friday",
-					"Saturday",
-				];
+				let totalQty = 0;
+				let breakdown = "";
 
 				for (let i = 0; i < days.length && days[i] <= isoTodayStr; i++) {
 					const date = days[i];
 					const qty = daily[date] || 0;
 					totalQty += qty;
-
-					const formattedDate = formatDate(date);
-					breakdown += `DAY ${i + 1} (${weekdayLabels[i]} ): ${qty}L\n`;
+					breakdown += `D${i + 1}-> ${qty} `;
 				}
 
 				const gross = totalQty * rate;
@@ -136,15 +127,9 @@ cron.schedule(
 				const net = gross - deduction;
 
 				const message =
-					`Kertai Milk Records from:\n` +
-					`Week: ${smsSundayStr} To ${smsTodayStr}\n` +
-					`Product: ${product}\n` +
-					`${breakdown}Total: ${totalQty}L\n` +
-					`Rate: ${rate.toFixed(2)} KES/L\n` +
-					`Total Amount: ${gross.toFixed(2)} KES\n` +
-					`Charges : ${deduction.toFixed(2)} KES\n` +
-					`Net Pay: ${net.toFixed(2)} KES\n` +
-					`By Management: 0720369014`;
+					`Kertai Milk\n` +
+					`${smsDateRangeStr}\n` +
+					`${breakdown}Total ${totalQty} L`;
 
 				const smsResult = await sendSMS(phone, message);
 				if (smsResult?.statusCode !== 100) {
