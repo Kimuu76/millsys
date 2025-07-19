@@ -14,7 +14,7 @@ function formatCompactDateRange(startDate, endDate) {
 
 // Run every minute (adjust to real schedule)
 cron.schedule(
-	"0 18 * * 6",
+	"*/10 * * * *",
 	async () => {
 		{
 			/*cron.schedule(
