@@ -14,13 +14,8 @@ function formatCompactDateRange(startDate, endDate) {
 
 // Run every minute (adjust to real schedule)
 cron.schedule(
-	"*/10 * * * *",
+	"10 17 * * 6",
 	async () => {
-		{
-			/*cron.schedule(
-	"0 18 * * 6",
-	async () => {*/
-		}
 		console.log("🕕 Running daily SMS job...");
 		console.log(
 			"triggered at:",
