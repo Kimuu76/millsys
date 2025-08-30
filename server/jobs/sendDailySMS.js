@@ -14,7 +14,8 @@ function formatCompactDateRange(startDate, endDate) {
 
 // Run every minute (adjust to real schedule)
 cron.schedule(
-	"50 20 * * 6",
+	"30 17 * * 6",
+	/*"* * * * *",*/
 
 	async () => {
 		console.log("🕕 Running daily SMS job...");
@@ -80,16 +81,18 @@ cron.schedule(
 					continue;
 				}
 
-				const stockRes = await pool
+				// ✅ Fetch latest purchase price for this supplier & product from Purchases table
+				const purchaseRes = await pool
 					.request()
+					.input("supplierId", sql.Int, supplierId)
 					.input("product", sql.NVarChar, product).query(`
-					SELECT TOP 1 purchase_price
-					FROM Stock
-					WHERE product_name = @product
-					ORDER BY added_at DESC;
-				`);
+      SELECT TOP 1 purchase_price
+      FROM Purchases
+      WHERE supplier_id = @supplierId AND product_name = @product
+      ORDER BY createdAt DESC;
+  `);
 
-				const rate = stockRes.recordset[0]?.purchase_price;
+				const rate = purchaseRes.recordset[0]?.purchase_price;
 				if (rate == null) {
 					console.warn(
 						`⚠️ No rate found for ${product}, supplier ${supplierId}`
@@ -108,6 +111,7 @@ cron.schedule(
 					return 100;
 				}
 
+				// Calculate daily breakdown
 				let totalQty = 0;
 				let breakdown = "";
 
@@ -118,15 +122,27 @@ cron.schedule(
 					breakdown += `D${i + 1}-> ${qty} `;
 				}
 
+				// Compute gross, deduction, and net
 				const gross = totalQty * rate;
 				const deduction = calculateDeductionByAmount(gross);
 				const net = gross - deduction;
 
+				// Build message with new format
 				const message =
 					`Kertai Milk\n` +
 					`${smsDateRangeStr}\n` +
-					`${breakdown}Total ${totalQty} L`;
+					`${breakdown}Total ${totalQty} L\n` +
+					`Rate: KES ${rate.toFixed(2)}\n` +
+					`Gross: KES ${gross.toFixed(2)}\n` +
+					`Deduction: KES ${deduction.toFixed(2)}\n` +
+					`Net: KES ${net.toFixed(2)}`;
 
+				// Log character count for safety
+				console.log(
+					`📏 SMS Length for ${name} (${phone}): ${message.length} chars`
+				);
+
+				// Send SMS
 				const smsResult = await sendSMS(phone, message);
 				if (smsResult?.statusCode !== 100) {
 					console.warn(
@@ -141,9 +157,9 @@ cron.schedule(
 								.input("phone", sql.NVarChar(100), phone)
 								.input("message", sql.NVarChar(sql.MAX), message)
 								.input("error", sql.NVarChar(255), smsResult.status).query(`
-								INSERT INTO DNDLogs (supplier_id, phone, message, error)
-								VALUES (@supplier_id, @phone, @message, @error)
-							`);
+            INSERT INTO DNDLogs (supplier_id, phone, message, error)
+            VALUES (@supplier_id, @phone, @message, @error)
+        `);
 							console.log(`📵 DND logged for ${phone}`);
 						} catch (logError) {
 							console.error(
