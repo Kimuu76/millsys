@@ -24,6 +24,8 @@ import { Autocomplete } from "@mui/material";
 import API_BASE_URL from "../config";
 import PurchaseReceipt from "../components/PurchaseReceipt";
 import * as XLSX from "xlsx";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Container = styled.div`
 	padding: 20px;
@@ -228,9 +230,10 @@ const Purchases = () => {
 				body: JSON.stringify(newPurchase),
 			});
 
-			// ✅ Show success snackbar
-			setSnackbarMessage("✅ Purchase added successfully!");
-			setOpenSnackbar(true);
+			toast.success("✅ Purchases imported successfully!", {
+				position: "top-right",
+				autoClose: 3000,
+			});
 
 			fetchPurchases();
 			setOpen(false);
@@ -272,16 +275,21 @@ const Purchases = () => {
 
 				if (!response.ok) throw new Error("Failed to import");
 
-				setSnackbarMessage("✅ Purchases imported successfully!");
-				setOpenSnackbar(true);
+				toast.success("✅ Purchases imported successfully!", {
+					position: "top-right",
+					autoClose: 3000,
+				});
+
 				fetchPurchases();
 			};
 
 			reader.readAsArrayBuffer(file);
 		} catch (err) {
 			console.error("❌ Import error:", err);
-			setSnackbarMessage("❌ Failed to import purchases.");
-			setOpenSnackbar(true);
+			toast.error("❌ Failed to import purchases.", {
+				position: "top-right",
+				autoClose: 3000,
+			});
 		}
 	};
 
@@ -670,7 +678,7 @@ const Purchases = () => {
 					/>
 				)}
 			</Dialog>
-			<Snackbar
+			{/*<Snackbar
 				open={openSnackbar}
 				autoHideDuration={4000}
 				onClose={() => setOpenSnackbar(false)}
@@ -683,7 +691,8 @@ const Purchases = () => {
 				>
 					{snackbarMessage}
 				</Alert>
-			</Snackbar>
+			</Snackbar>*/}
+			<ToastContainer />
 		</Container>
 	);
 };
