@@ -41,6 +41,7 @@ const Purchases = () => {
 	const [openReceipt, setOpenReceipt] = useState(false);
 	const [snackbarMessage, setSnackbarMessage] = useState("");
 	const [openSnackbar, setOpenSnackbar] = useState(false);
+	const [importing, setImporting] = useState(false);
 
 	const [loading, setLoading] = useState(true);
 	const [newPurchase, setNewPurchase] = useState({
@@ -252,35 +253,47 @@ const Purchases = () => {
 	};
 
 	const handleImportFile = async (file) => {
+		if (importing) return; // Prevent double click
 		try {
+			setImporting(true); // start loading
 			const token = localStorage.getItem("token");
 			if (!file || !token) return;
 
 			const reader = new FileReader();
 			reader.onload = async (e) => {
-				const data = new Uint8Array(e.target.result);
-				const workbook = XLSX.read(data, { type: "array" });
-				const sheet = workbook.Sheets[workbook.SheetNames[0]];
-				const json = XLSX.utils.sheet_to_json(sheet);
+				try {
+					const data = new Uint8Array(e.target.result);
+					const workbook = XLSX.read(data, { type: "array" });
+					const sheet = workbook.Sheets[workbook.SheetNames[0]];
+					const json = XLSX.utils.sheet_to_json(sheet);
 
-				// Send to backend
-				const response = await fetch(`${API_BASE_URL}/api/purchases/import`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ data: json }),
-				});
+					// Send to backend
+					const response = await fetch(`${API_BASE_URL}/api/purchases/import`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({ data: json }),
+					});
 
-				if (!response.ok) throw new Error("Failed to import");
+					if (!response.ok) throw new Error("Failed to import");
 
-				toast.success("✅ Purchases imported successfully!", {
-					position: "top-right",
-					autoClose: 3000,
-				});
+					toast.success("✅ Purchases imported successfully!", {
+						position: "top-right",
+						autoClose: 3000,
+					});
 
-				fetchPurchases();
+					fetchPurchases();
+				} catch (err) {
+					console.error("❌ Import error:", err);
+					toast.error("❌ Failed to import purchases.", {
+						position: "top-right",
+						autoClose: 3000,
+					});
+				} finally {
+					setImporting(false); // stop loading
+				}
 			};
 
 			reader.readAsArrayBuffer(file);
@@ -290,6 +303,7 @@ const Purchases = () => {
 				position: "top-right",
 				autoClose: 3000,
 			});
+			setImporting(false);
 		}
 	};
 
@@ -443,8 +457,15 @@ const Purchases = () => {
 				color='secondary'
 				component='label'
 				sx={{ ml: 2 }}
+				disabled={importing}
 			>
-				Import from Excel
+				{importing ? (
+					<>
+						<CircularProgress size={18} sx={{ mr: 1 }} /> Importing...
+					</>
+				) : (
+					"Import from Excel"
+				)}
 				<input
 					type='file'
 					accept='.xlsx, .xls'
@@ -452,6 +473,7 @@ const Purchases = () => {
 					onChange={(e) => handleImportFile(e.target.files[0])}
 				/>
 			</Button>
+
 			{/*<Button
 				variant='contained'
 				color='error'
